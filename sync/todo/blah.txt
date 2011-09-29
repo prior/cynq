@@ -1,0 +1,74 @@
+webex_registrant_remote_controller(event)
+owns: remote_id
+shares: remote_id, first_name, last_name, email
+keys: remote_id
+
+abilities = 'create','delete','list', 'get'
+
+
+hubspot_registrant_remote_controller(event)
+owns: lead_guid, hubspot_synced_at(synced_at), registered_conversion_guid, attended_conversion_guid
+shares: lead_guid, hubspot_synced_at, first_name, last_name, email, registered_conversion_guid, attended_conversion_guid
+keys: lead_guid
+
+abilities = 'list', 'update', 'get?? - for single item get - needed? or wanted?'
+
+local_registrant_remote_controller(event)
+owns: id
+shares: all of it, webex_last_synced_at (special), deleted_at(special), hubspot_last_synced_at (special)
+keys: lead_guid, remote_id
+
+
+1) pull all registrants from all sources -- hashed by their keys.  -- start with source of largest number of keys, 
+and start matching up and merging up til all are exhausted, then push them back to all sources first to those that return back values
+
+2) 
+
+
+TestObject
+  
+  id
+
+  a
+  b
+  c
+
+WebexRemoteController
+  owned_attributes = remote_id
+  shared_attributes = remote_id, email, name
+
+HubSpotRemoteController
+  owned_attributes = lead_guid, email, name
+  changeable_attributes = email, name
+
+LocalRemoteController
+  shared_attributes = remote_id, lead_guid, email, name
+  shares = email, lead_guid, remote_id
+
+SyncArena
+  keys = remote_id, lead_guid
+
+SyncMaster(controllers=[], arena):
+
+test_change_from_webex
+  already_synced()
+  webex[JOE.remote_id].name = John
+  sync()
+  assertTrue(hubspot[JOE.lead_guid].name = John
+  assertTrue(local[JOE.id].name = John
+
+
+
+
+1) each gets its own list of objects
+2) each hash's by the keys they care about
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,12 @@
+sync_core is a core framework to aide in syncing of remote data stores.
+
+You are able to sync 1 or many remote sources of data with a local source.  
+It takes care of bidirectional syncing for you so you don't have to worry
+about it.  You just gotta make sure you have a couple extra columns in your
+local data table to record how and when things were updated, and you need 
+to make sure that you update a column appropriately on certain types of updates
+and then you're good to go.
+
+still more work to be done to make this completely client friendly, but it
+is viable as it exists today
+
