@@ -18,6 +18,7 @@ class RemoteStore(BaseStore):
 
     def mark_updated(self, local_obj):
         setattr(local_obj, self.syncable_updated_at_attribute, self.sync_time)
+        setattr(local_obj, self.local_synced_at_attribute, self.sync_time)
         local_obj._updated = True
         return local_obj
 
@@ -29,9 +30,6 @@ class RemoteStore(BaseStore):
             setattr(local_obj, self.local_deleted_at_attribute, self.sync_time)
         self.mark_updated(local_obj)
 
-    def _delete(self, obj, remote_store, set_deleted_at=False):
-        setattr(obj, remote_store.syncable_updated_at_attribute, self.sync_time)
-        
     def local_deleted_at(self, local_obj):
         return getattr(local_obj, self.local_deleted_at_attribute)
 
@@ -54,16 +52,27 @@ class RemoteStore(BaseStore):
             id_ = getattr(obj, self.key_attribute)
             merge_obj = merge_pile.get(self.key_attribute, id_)
             if merge_obj:
+                print "yyyyyyyyyyyyyy"
+                if not self.equals(merge_obj, obj):
+                    print "zzzzzzzzzzzzzzzz"
+                if not self.locally_updated_since_last_sync(merge_obj):
+                    print "bbbbbbbbbbbbbbbbb"
                 if not self.equals(merge_obj, obj) and not self.locally_updated_since_last_sync(merge_obj):
                     self.merge_object(obj, merge_obj)
+                    print "alksjdfl"
                     self.mark_updated(obj)
             else:
                 merge_pile.add(obj)
+                print "alksjdfllkajsdlfkja"
                 self.mark_updated(obj)
 
     def _inbound_delete(self, merge_pile):
         for obj in merge_pile.missing_objects(self.key_attribute, self.cached_hash().keys()):
+            from pprint import pprint
             if self.local_existence(obj):
+                pprint(obj)
+                pprint(vars(obj))
+                print "alksjdfllkajsdlfkjaxxxxxx"
                 self.mark_deleted(obj)
 
     def _outbound_delete(self, merge_pile):
