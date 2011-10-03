@@ -45,6 +45,8 @@ class RemoteStore(BaseStore):
     def locally_updated_since_last_sync(self, local_obj):
         _syncable_updated_at = self.syncable_updated_at(local_obj)
         _local_synced_at = self.local_synced_at(local_obj)
+        if getattr(local_obj,'_updated', None):
+            return True
         return (not _local_synced_at and _syncable_updated_at) or (_local_synced_at and _syncable_updated_at and _syncable_updated_at > _local_synced_at)
 
     def _inbound_upsert(self, merge_pile):
@@ -52,27 +54,16 @@ class RemoteStore(BaseStore):
             id_ = getattr(obj, self.key_attribute)
             merge_obj = merge_pile.get(self.key_attribute, id_)
             if merge_obj:
-                print "yyyyyyyyyyyyyy"
-                if not self.equals(merge_obj, obj):
-                    print "zzzzzzzzzzzzzzzz"
-                if not self.locally_updated_since_last_sync(merge_obj):
-                    print "bbbbbbbbbbbbbbbbb"
                 if not self.equals(merge_obj, obj) and not self.locally_updated_since_last_sync(merge_obj):
                     self.merge_object(obj, merge_obj)
-                    print "alksjdfl"
-                    self.mark_updated(obj)
+                    self.mark_updated(merge_obj)
             else:
                 merge_pile.add(obj)
-                print "alksjdfllkajsdlfkja"
                 self.mark_updated(obj)
 
     def _inbound_delete(self, merge_pile):
         for obj in merge_pile.missing_objects(self.key_attribute, self.cached_hash().keys()):
-            from pprint import pprint
             if self.local_existence(obj):
-                pprint(obj)
-                pprint(vars(obj))
-                print "alksjdfllkajsdlfkjaxxxxxx"
                 self.mark_deleted(obj)
 
     def _outbound_delete(self, merge_pile):

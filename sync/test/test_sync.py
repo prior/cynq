@@ -275,12 +275,14 @@ class SyncTest(unittest2.TestCase):
     def test_remote_changes(self):
         self.ls.seed(5, deleted_count=3)
         update_obj = self.rs1.list_()[-1]
-        update_obj.email = random_str()
+        email = random_str()
+        update_obj.email = email
         self.rs1._core_save(update_obj)
         self.assert_not_synced()
         self.ls.sync()
         self.assert_synced()
         self.assertEquals(5,len(self.ls.list_()))
+        self.assertIn(email, [o.email for o in self.ls.list_()])
 
     def test_local_changes(self):
         self.ls.seed(5, deleted_count=3)

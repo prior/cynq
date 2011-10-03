@@ -25,9 +25,6 @@ class MergePile(object):
     def persist_changes(self, local_store):
         for obj in self.list_:
             if getattr(obj, '_updated', None):
-                from pprint import pprint
-                pprint(obj)
-                pprint(vars(obj))
                 local_store.save(obj)
 
     def _establish_pointers(self, obj):
