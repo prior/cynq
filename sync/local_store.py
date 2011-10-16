@@ -1,6 +1,6 @@
-from datetime import datetime
 from base_store import BaseStore
 from merge_pile import MergePile
+from sanetime.sanetime import SaneTime
 
 class LocalStore(BaseStore):
     synced_at_attribute = 'synced_at'
@@ -22,12 +22,13 @@ class LocalStore(BaseStore):
         self.remote_stores.append(remote_store)
 
     def sync_prep(self):
-        self.sync_time = datetime.utcnow()
+        self.sync_time = SaneTime().to_datetime().replace(tzinfo=None)
         super(LocalStore,self).sync_prep(self.sync_time)
         for rs in self.remote_stores:
             rs.sync_prep(self.sync_time)
 
     def sync(self):
+        print "==== starting sync: %s" % self.__class__
         self.sync_prep()
         unique_keys = list(set([r.key_attribute for r in self.remote_stores]))
         merge_pile = MergePile(self.list_(), unique_keys) 
