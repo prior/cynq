@@ -28,7 +28,6 @@ class LocalStore(BaseStore):
             rs.sync_prep(self.sync_time)
 
     def sync(self):
-        print "==== starting sync: %s" % self.__class__
         self.sync_prep()
         unique_keys = list(set([r.key_attribute for r in self.remote_stores]))
         merge_pile = MergePile(self.list_(), unique_keys) 

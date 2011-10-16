@@ -1,4 +1,5 @@
 import unittest2
+import sys
 import uuid
 from datetime import datetime
 import copy
@@ -7,24 +8,8 @@ from sync.remote_store import RemoteStore
 from sync.local_store import LocalStore
 
 import logging
-logger = logging.getLogger("sync")
-logger.setLevel(logging.DEBUG)
-
-# create file handler which logs even debug messages
-fh = logging.FileHandler('tests.log')
-fh.setLevel(logging.DEBUG)
-# create console handler with a higher log level
-ch = logging.StreamHandler()
-ch.setLevel(logging.ERROR)
-# create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-# add the handlers to the logger
-logger.addHandler(fh)
-logger.addHandler(ch)
-
-
+import log
+log.console_handler.setLevel(logging.WARN)
 
 
 
@@ -177,11 +162,15 @@ class TestObject(object):
 class SyncTest(unittest2.TestCase):
 
     def setUp(self):
+        print ""
         self.rs1 = PersonRemoteStore1()
         self.rs2 = PersonRemoteStore2()
         self.ls = PersonLocalStore()
         self.ls.attach_remote_store(self.rs1)
         self.ls.attach_remote_store(self.rs2)
+
+    def tearDown(self):
+        pass
 
     def assert_synced(self):
         self.ls.sync_prep()

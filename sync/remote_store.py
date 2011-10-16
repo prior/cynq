@@ -1,5 +1,11 @@
-import logging_helper
+import logger
 from base_store import BaseStore
+from pprint import pformat
+
+# lots of assumption here:
+  # 1) remote store returns no soft_delete items in its list-- not taking that possibility into account right now
+  # 2) that you're able to create a full list of your remote entities -- #TODO make it possible to bring in changesets, or only thigns that might've changed since last sync, or partial list, or etc...?
+  # 3) .... many others.. #TODO need to expand
 
 class RemoteStore(BaseStore):
     local_existence_attribute = None
@@ -7,7 +13,7 @@ class RemoteStore(BaseStore):
     def __init__(self):
         super(RemoteStore, self).__init__()
         self.local_existence_attribute = self.__class__.local_existence_attribute
-        self.logger = logging_helper.get_package_logger()
+        self.log = logger.get_log(self.__class__,'remote')
 
     def equals(self, obj1, obj2):
         if sum([getattr(obj1,attr) != getattr(obj2,attr) for attr in self.syncable_attributes]) == 0:
@@ -52,86 +58,96 @@ class RemoteStore(BaseStore):
         return (not _local_synced_at and _syncable_updated_at) or (_local_synced_at and _syncable_updated_at and _syncable_updated_at > _local_synced_at)
 
     def _inbound_upsert(self, merge_pile):
-        inserts = {}
-        updates = {}
-        print '=== inbound upsert staring for %s...' % self.__class__
-        for obj in self.cached_list():
+        self.log.debug('Inbound Upsert || Starting...')
+        inserts = []
+        updates = []
+        possibles = self.cached_list()
+        for obj in possibles:
             id_ = getattr(obj, self.key_attribute)
             merge_obj = merge_pile.get(self.key_attribute, id_)
             if merge_obj:
-                if not self.equals(merge_obj, obj) and not self.locally_updated_since_last_sync(vars(merge_obj)):
-                    self.logger.debug('inbound update: updating existing merge-pile object...\n  target:%s\n  source:%s\n'%(merge_obj,vars(obj)))
-                    print '===== inbound update: updating existing merge-pile object with remote object...\n  target:%s\n  source:%s\n'%(vars(merge_obj),vars(obj))
+                if self.equals(merge_obj, obj):
+                    self.log.debug('Inbound Update || Ignoring this object since all synchronizable fields already exist as an object on the merge pile...\nremote object:\n%s\nmerge-pile object:\n%s\n' % (pformat(vars(obj)), pformat(vars(merge_obj))))
+                elif self.locally_updated_since_last_sync(merge_obj):
+                    self.log.debug('Inbound Update || Ignoring this object because the corresponding merge-pile object appears to already have been updating since the last sync, and we want local changes to override in this case (cuz this library doesn\'t have the ability to sync at the attribute level right now)...\nremote object:\n%s\nmerge-pile object:\n%s\n' % (pformat(vars(obj)), pformat(vars(merge_obj))))
+                else:
+                    self.log.debug('Inbound Update || Updating existing merge-pile object with remote object...\nremote object:\n%s\nmerge-pile object:\n%s\n' % (pformat(vars(obj)), pformat(vars(merge_obj))))
                     self.merge_object(obj, merge_obj)
                     self.mark_updated(merge_obj)
-                    updates[id_] = obj
+                    updates.append(obj)
             else:
-                self.logger.debug('inbound upsert: inserting new object to merge-pile: %s'%obj)
-                print '===== inbound insert: inserting new object to merge-pile from remote object...\n  obj:%s'%vars(obj)
+                self.log.debug('Inbound Insert || Creating new merge-pile object from remote object...\nremote_object:\n%s \n' % pformat(vars(obj)))
                 merge_pile.add(obj)
                 self.mark_updated(obj)
-                inserts[id_] = obj
-        self.logger.info('inbound upsert:  screened:%s  merge-pile-updates:%s  merge-pile-inserts:%s'%(len(self.cached_list()),len(updates),len(inserts)))
-        print '=== inbound upsert:  screened:%s  merge-pile-updates:%s  merge-pile-inserts:%s'%(len(self.cached_list()),len(updates),len(inserts))
+                inserts.append(obj)
+        self.log.info('Inbound Upsert || Complete (screened:%s  merge-pile-updates:%s  merge-pile-inserts:%s)' % (len(possibles),len(updates),len(inserts)))
 
     def _inbound_delete(self, merge_pile):
-        deletes = {}
-        print '=== inbound delete starting for %s...' % self.__class__
+        self.log.debug('Inbound Delete || Starting...')
+        deletes = []
         missing_candidates = merge_pile.missing_objects(self.key_attribute, self.cached_hash().keys())
         for obj in missing_candidates:
             if self.local_existence(obj):
-                print '===== inbound delete: deleting object that exists on the merge-pile cuz I could find no record of it on the remote end...\n obj:%s'%vars(obj)
+                self.log.debug('Inbound Delete || Deleting object on the merge-pile because it has already established local_existence with this remote store, and it no longer exists in the remote store...\nmerge-pile object:\n%s\n' % pformat(vars(obj)))
                 self.mark_deleted(obj)
-                deletes[getattr(obj, self.key_attribute)] = obj
-        print '=== inbound delete:  screened:%s  merge-pile-deletes:%s'%(len(missing_candidates),len(deletes))
+                deletes.append(obj)
+            else:
+                self.log.debug('Inbound Delete || Ignoring the presense of this object in the merge-pile and its absense in the remote store, because it hasn\'t established its presence yet with the remote store, and is likely going to cause a downstream create against the remote store on this very sync operation...\nmerge-pile object:\n%s\n' % pformat(vars(obj)))
+        self.log.info('Inbound Delete || Complete (screened:%s  merge-pile-deletes:%s)' % (len(missing_candidates),len(deletes)))
 
     def _outbound_delete(self, merge_pile):
-        deletes = {}
-        print '=== outbound delete starting for %s...' % self.__class__
-        candidates = merge_pile.common_objects(self.key_attribute, self.cached_hash().keys())
+        self.log.debug('Outbound Delete || Starting...')
+        deletes = []
+        candidates = [o for o in merge_pile.common_objects(self.key_attribute, self.cached_hash().keys()) if self.local_deleted_at(o)]
         for obj in candidates:
-            if self.local_deleted_at(obj):
-                print '===== outbound delete: deleting object that has been soft deleted locally and still exists remotely...\n obj:%s'%vars(obj)
-                self.delete(obj)
-                self.mark_deleted(obj)
-                deletes[getattr(obj, self.key_attribute)] = obj
-        print '=== outbound delete:  screened:%s  merge-pile-deletes:%s'%(len(candidates),len(deletes))
+            self.log.debug('Outbound Delete || Deleting object in the remote store because it has been soft deleted locally, and the remote store seems to think it still exists...\nmerge-pile object:\n%s\n' % pformat(vars(obj)))
+            self.delete(obj)
+            self.mark_deleted(obj)
+            deletes.append(obj)
+        self.log.info('Outbound Delete || Complete (screened:%s  merge-pile-deletes:%s)' % (len(candidates),len(deletes)))
 
 
     def _outbound_create(self, merge_pile):
+        self.log.debug('Outbound Create || Starting...')
         creates = []
-        print '=== outbound create starting for %s...' % self.__class__
         candidates = merge_pile.missing_objects(self.key_attribute, self.cached_hash().keys())
         for obj in candidates:
-            if not self.local_existence(obj) and not self.local_deleted_at(obj):
+            if self.local_existence(obj):
+                self.log.error('Outbound Create || This shouldn\'t occur -- Ignoring this object since it seems to both exist and not exist in the remote, something\'s wrong!\nmerge-pile object:\n%s' % pformat(vars(obj)))
+            elif self.local_deleted_at(obj):
+                # this is fine and expected!  for incoming deletes we would've marked them as soft_deleted, and now they're getting picked up here
+                self.log.debug('Outbound Create || Ignoring cuz this is just an incoming delete already dealt with...')
+            else:
                 self.merge_object(self.save(obj), obj)
                 self.mark_updated(obj)
                 try:
                     self.local_store.save(obj)
-                    print '===== outbound insert: inserting new object to remote system from merge-pile...\n  obj:%s'%vars(obj)
+                    self.log.debug('Outbound Create || Creating new objects in the remote store from the merge-pile...\nmerge-pile object:\n%s \n' % pformat(vars(obj)))
                     creates.append(obj)
                 except:
                     self.delete(obj)  # attempt to backtrack back into a sync state-- otherwise we'll get duplicates here
-                    print '===== outbound insert: backtrack!'
-        print '=== outbound create:  screened:%s  inserts:%s'%(len(candidates),len(creates))
+                    self.log.error('Outbound Create || Failed Attempt at Insert!  Attempting to back out to minimize damage...\nmerge-pile object:\n%s \n' % pformat(vars(obj)))
+        self.log.info('Outbound Create || Complete (screened:%s  remote-creates:%s)' % (len(candidates),len(creates)))
 
     def _outbound_update(self, merge_pile):
+        self.log.debug('Outbound Update || Starting...')
         updates = []
-        print '=== outbound update starting for %s...' % self.__class__
-        #for merged_obj in merge_pile.common_objects(self.key_attribute, self.cached_hash().keys()):
-        #self.logger("Outbound Update")
         candidates = merge_pile.common_objects(self.key_attribute, self.cached_hash().keys())
         for merged_obj in candidates:
             remote_obj = self.cached_hash()[getattr(merged_obj,self.key_attribute)]
-            if not self.local_deleted_at(merged_obj):
-                if not self.equals(merged_obj, remote_obj):
-                    print '===== outbound update: updating existing remote object from merge-pile...\n  target:%s\n  source:%s\n'%(vars(remote_obj),vars(merged_obj))
-                    updates.append(merged_obj)
+            if self.local_deleted_at(merged_obj):
+                self.log.error('Outbound Update || This shouldn\'t occur -- Ignoring this object since it seems to still exist in the remote even though it should\'ve been cleared by now!\nmerge-pile object:\n%s' % pformat(vars(merged_obj)))
+            else:
+                if self.equals(merged_obj, remote_obj):
+                    self.log.debug('Outbound Update || Ignoring this object since all synchronizable fields already exist as an object in the remote store...\nremote object:\n%s\nmerge-pile object:\n%s\n' % (pformat(vars(remote_obj)), pformat(vars(merged_obj))))
+                else:
                     self.save(merged_obj)
                     self.mark_updated(merged_obj)
+                    self.log.debug('Outbound Update || Updating remote object with those attributes from the merge-pile...\nremote object:\n%s\nmerge-pile object:\n%s\n' % (pformat(vars(remote_obj)), pformat(vars(merged_obj))))
+                    updates.append(merged_obj)
                     try:
                         self.local_store.save(merged_obj)
                     except:
                         self.save(remote_obj)  # attempt to backtrack back into a sync state-- otherwise we'll get duplicates here
-                        print '===== outbound update: backtrack!'
-        print '=== outbound update:  screened:%s  updates:%s'%(len(candidates),len(updates))
+                        self.log.error('Outbound Update || Failed Attempt at Insert!  Attempting to back out to minimize damage (There probably will be damage here-- need to revisit!)...\nremote object:\n%s\nmerge-pile object:\n%s\n' % (pformat(vars(remote_obj)), pformat(vars(merged_obj))))
+        self.log.info('Outbound Update || Complete (screened:%s  remote-updates:%s)' % (len(candidates),len(updates)))
