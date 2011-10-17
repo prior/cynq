@@ -78,10 +78,13 @@ class BaseStore(object):
     def _persisted(self, obj):
         if getattr(obj, '_updated', False):
             del obj._updated
-        
-    def _delete(self, obj):
-        raise Exception("Not Implemented!") 
 
+
+    
+    def 
+
+
+        
     def _get(self, id_):
         raise Exception("Not Implemented!") 
 
@@ -93,3 +96,7 @@ class BaseStore(object):
 
     def _create(self, obj):
         raise Exception("Not Implemented!") 
+
+    def _delete(self, obj):
+        raise Exception("Not Implemented!") 
+
