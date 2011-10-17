@@ -1,6 +1,7 @@
 import logger
 from base_store import BaseStore
 from pprint import pformat
+from pprint import pprint
 
 # lots of assumption here:
   # 1) remote store returns no soft_delete items in its list-- not taking that possibility into account right now
@@ -118,7 +119,10 @@ class RemoteStore(BaseStore):
                 # this is fine and expected!  for incoming deletes we would've marked them as soft_deleted, and now they're getting picked up here
                 self.log.debug('Outbound Create || Ignoring cuz this is just an incoming delete already dealt with...')
             else:
+                print "================"
+                pprint(vars(obj))
                 self.merge_object(self.save(obj), obj)
+                pprint(vars(obj))
                 self.mark_updated(obj)
                 try:
                     self.local_store.save(obj)

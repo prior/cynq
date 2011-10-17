@@ -8,7 +8,7 @@ log.setLevel(logging.DEBUG)
 file_handler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'test_run.log'), mode="w")
 file_handler.setLevel(logging.DEBUG)
 
-console_handler = logging.StreamHandler(sys.stderr)
+console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s %(levelname)-5s %(name)s == %(message)s')

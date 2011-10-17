@@ -7,9 +7,7 @@ import copy
 from sync.remote_store import RemoteStore
 from sync.local_store import LocalStore
 
-import logging
-import log
-log.console_handler.setLevel(logging.WARN)
+import logger
 
 
 
