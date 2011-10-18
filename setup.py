@@ -1,13 +1,13 @@
 from distutils.core import setup
 
 setup(
-    name='sync_core',
+    name='cynq',
     version='1.0',
-    description='SyncCore HubSpot Package',
+    description='A data synchronizer',
     author='Michael Prior',
-    author_email='mprior@hubspot.com',
-    url=' http://hubspot.com/',
-    packages=['sync'],
+    author_email='prior@cracklabs.com',
+    url='',
+    packages=['cynq'],
     install_requires=[
         'nose',
         'unittest2',
