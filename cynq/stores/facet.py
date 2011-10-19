@@ -6,8 +6,8 @@ class Facet(Proxy):
         self.key_attribute = key_attribute
         self.cache = None
 
-    def list_(self):
-        return self.dict_().values()
+    def all_(self):
+        return set(self.dict_().values())
 
     def create(self, obj):
         obj = super(Facet,self).create(obj)
@@ -30,7 +30,7 @@ class Facet(Proxy):
 
     def dict_(self):
         if self.cache is None:
-            self.cache = dict((getattr(o,self.key_attribute),o) for o in self.store.list_() if getattr(o,self.key_attribute,None))
+            self.cache = dict((getattr(o,self.key_attribute),o) for o in self.store.all_() if getattr(o,self.key_attribute,None))
         return self.cache
 
     def __iter__(self):

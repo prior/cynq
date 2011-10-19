@@ -8,8 +8,8 @@ class Proxy(base.Base):
             if getattr(store, attr, None):
                 setattr(self, attr, getattr(store, attr))
 
-    def list_(self):
-        return self.store.list_()
+    def all_(self):
+        return self.store.all_()
 
     def create(self, obj):
         return self.store.create(obj)

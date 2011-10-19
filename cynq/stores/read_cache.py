@@ -7,14 +7,14 @@ class ReadCache(Proxy):
         super(ReadCache, self).__init__(store)
         self.cache = None
 
-    def list_(self):
+    def all_(self):
         if self.cache is None:
-            self.cache = self.store.list_()
+            self.cache = set(self.store.all_())
         return self.cache
 
     def create(self, obj):
         obj = super(ReadCache, self).create(obj)
-        self.cache.append(obj)
+        self.cache.add(obj)
         return obj
 
     def delete(self, obj):

@@ -10,7 +10,7 @@ class Remote(base.Base):
     def __init__(self, store):
         super(Remote, self).__init__()
 
-    def list_(self):
+    def all_(self):
         raise NotImplementedError()
 
     def update(self, obj):
