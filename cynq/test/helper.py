@@ -14,6 +14,8 @@ class TestObject(object):
         self.change(args)
         for k in kwargs:
             setattr(self,k,kwargs[k])
+        for attr in (set(self.__class__.attrs) - set(args) - set(kwargs.keys())):
+            setattr(self,attr,None)
 
     def change(self, attrs=None):
         attrs = attrs or []

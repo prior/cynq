@@ -31,8 +31,12 @@ class Base(object):
         attrs = set()
         for designation in designations:  # bring designations into instance fields
             if getattr(cls, designation, None):
-                attrs = attrs | set(getattr(cls, designation))
+                val = getattr(cls, designation)
+                if designation=='key_attribute':
+                    val = [val]
+                attrs = attrs | set(val)
         return attrs
+
 
         
 
