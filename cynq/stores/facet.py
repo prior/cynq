@@ -1,9 +1,37 @@
-from stores.keyed_read_cache import KeyedReadCache
+from proxy import Proxy
 
-# easy exposure across a given key
-class Facet(KeyedReadCache):
+class Facet(Proxy):
     def __init__(self, store, key_attribute):
-        super(Facet,self).__init__(store, key_attribute)
+        super(Facet, self).__init__(store)
+        self.key_attribute = key_attribute
+        self.cache = None
+
+    def list_(self):
+        return self.dict_().values()
+
+    def create(self, obj):
+        obj = super(Facet,self).create(obj)
+        self._key_created_if_not_exists(obj)
+
+    def update(self, obj):
+        current_obj = getattr(obj,self.key_attribute)
+        if getattr(self, 'communal_attributes', None) is not None:
+            for attr in getattr(self,'communal_attributes'):
+                if getattr(obj,attr) != getattr(current_obj,attr):
+                    obj = super(Facet,self).update(obj)
+                    break
+        else:
+            obj = super(Facet,self).update(obj)
+        return obj
+
+    def delete(self, obj):
+        obj = super(Facet,self).delete(obj)
+        self._key_deleted_if_exists(obj)
+
+    def dict_(self):
+        if self.cache is None:
+            self.cache = dict((getattr(o,self.key_attribute),o) for o in self.store.list_() if getattr(o,self.key_attribute,None))
+        return self.cache
 
     def __iter__(self):
         return iter(self.dict_())
@@ -20,17 +48,15 @@ class Facet(KeyedReadCache):
     def __sub__(self, other): # other must also be a Facet
         return set(self) - set(other)
 
+
 # these two are used only if hooked up to a MultiFacet
 
     def _key_created_if_not_exists(self, obj):
-        self.dict_()[getattr(obj, self.key_attribute)] = obj
+        if getattr(obj, self.key_attribute, None):
+            self.dict_()[getattr(obj, self.key_attribute)] = obj
 
     def _key_deleted_if_exists(self, obj):
-        key = getattr(obj, self.key_attribute)
-        if key in self.dict_():
+        key = getattr(obj, self.key_attribute, None)
+        if key and key in self.dict_():
             del self.dict_()[key]
-
-
-
-
 

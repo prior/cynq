@@ -1,8 +1,8 @@
 import base
 
-class ProxyStore(base.BaseStore):
+class Proxy(base.Base):
     def __init__(self, store):
-        super(ProxyStore, self).__init__()
+        super(Proxy, self).__init__()
         self.store = store
         for attr in base.STORE_DESIGNATIONS:
             if getattr(store, attr, None):
