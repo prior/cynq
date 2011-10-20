@@ -11,8 +11,8 @@ setup(
     install_requires=[
         'nose',
         'unittest2',
-        'sanetime==1.0.0'],
+        'sanetime==1.0.1'],
     dependency_links = [
-        'http://github.com/prior/sanetime/tarball/v1.0.0#egg=sanetime-1.0.0'],
+        'http://github.com/prior/sanetime/tarball/v1.0.1#egg=sanetime-1.0.1'],
     platforms=["any"] )
 

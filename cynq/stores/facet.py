@@ -12,21 +12,12 @@ class Facet(Proxy):
     def create(self, obj):
         obj = super(Facet,self).create(obj)
         self._key_created_if_not_exists(obj)
-
-    def update(self, obj):
-        current_obj = getattr(obj,self.key_attribute)
-        if getattr(self, 'communal_attributes', None) is not None:
-            for attr in getattr(self,'communal_attributes'):
-                if getattr(obj,attr) != getattr(current_obj,attr):
-                    obj = super(Facet,self).update(obj)
-                    break
-        else:
-            obj = super(Facet,self).update(obj)
         return obj
 
     def delete(self, obj):
         obj = super(Facet,self).delete(obj)
         self._key_deleted_if_exists(obj)
+        return obj
 
     def dict_(self):
         if self.cache is None:

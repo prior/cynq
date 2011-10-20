@@ -12,47 +12,38 @@ class Controller(object):
     def __init__(self, local_store, remote_stores):
         super(Controller,self).__init__()
         self.gloved_local = LocalGlove(local_store)
-        self.multifaceted_local = MultiFacet(self.write_cached_local)
+        self.multifaceted_local = MultiFacet(self.gloved_local)
         self.connections = []
-        synced_at = SaneTime().to_datetime().replace(tzinfo=None)
         for remote in remote_stores:
             faceted_remote = Facet(remote, remote.key_attribute)
             faceted_local = self.multifaceted_local.get_facet(remote.key_attribute)
-            conn = Connection(faceted_local, faceted_remote, synced_at)
+            conn = Connection(faceted_local, faceted_remote)
             self.connections.append(conn)
 
     def sync(self):
-        self._inbound_create()
-        self._inbound_update()
-        self._inbound_delete()
+        synced_at = SaneTime().to_naive_utc_datetime()
+        self._inbound_create_and_update()
+        self._inbound_delete(synced_at)
         self._outbound_delete()
-        self._outbound_update()
-        self._outbound_create()
-        self.write_cached_local.flush()
+        self._outbound_create_and_update()
+        self.gloved_local.persist(synced_at)
 
-    def _inbound_create(self):
+    def _inbound_create_and_update(self):
         for conn in self.connections:
-            self.inbound_create()
+            conn.inbound_create_and_update()
 
-    def _inbound_update(self):
+    def _inbound_delete(self, synced_at):
         for conn in self.connections:
-            self.inbound_update()
-
-    def _inbound_delete(self):
-        for conn in self.connections:
-            self.inbound_delete()
+            conn.inbound_delete(synced_at)
 
     def _outbound_delete(self):
         for conn in self.connections:
-            self.outbound_delete()
+            conn.outbound_delete()
 
-    def _outbound_update(self):
+    def _outbound_create_and_update(self):
         for conn in self.connections:
-            self.outbound_update()
+            conn.outbound_create_and_update()
 
-    def _outbound_create(self):
-        for conn in self.connections:
-            self.outbound_create()
 
 
 
