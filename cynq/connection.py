@@ -1,5 +1,6 @@
 import logger
 from pprint import pformat
+from pprint import pprint
 #TODO: need to clean up relationship with local and decouple more -- right now it is very coupled - warning-- sizeable task!
 # model must have 'deleted_at', and 'exists_in_webinar' and 'exists_in_hubspot', and 'syncable_updated_at'
 
@@ -35,7 +36,7 @@ class Connection(object):
                         self._set_remote_expectation(local_obj, True)
                 else: 
                     if not self._has_local_changed_since_last_sync(local_obj): #update
-                        if not self.remote.objects_seem_equal(remote_obj, remote_obj): # only if diff
+                        if not self.remote.objects_seem_equal(local_obj, remote_obj): # only if diff
                             self.debug("local update...", local_obj, remote_obj)
                             self.remote.outbound_merge(local_obj,remote_obj)
                         self._set_remote_expectation(local_obj, True)
@@ -62,11 +63,11 @@ class Connection(object):
                 self.remote.delete(remote_obj)
                 self._set_remote_expectation(local_obj, False)
 
-    def outbound_create_and_update(self):
-        for key in self.local:
-            local_obj = self.local[key]
+    def outbound_create_and_update(self):  # including backing local to get at None keyed objects as well (i.e. to get at remote creates in the case this we've mapped a remotely 'owned' key field)
+        for local_obj in (self.local.all_() + self.local.leftovers.values()):
             if not local_obj.deleted_at: 
-                if key in self.remote: #update
+                key = getattr(local_obj, self.remote.key_attribute, None)
+                if key and key in self.remote: #update
                     remote_obj = self.remote[key]
                     if not self.remote.objects_seem_equal(local_obj, remote_obj): # only if diff
                         self.debug("remote update...", local_obj, remote_obj)
@@ -74,8 +75,11 @@ class Connection(object):
                         self._set_remote_expectation(local_obj, True)
                 else: 
                     if not self._has_remote_expectation(local_obj): #create
-                        self.debug("remote create...", local_obj)
-                        self.remote.outbound_merge(local_obj, self.remote.create(local_obj))
+                        self.debug("remote create...(initial)", local_obj)
+                        new_remote_obj = self.remote.create(local_obj)
+                        self.debug("remote create...(returned)", remote_obj = new_remote_obj)
+                        self.remote.outbound_merge(local_obj, new_remote_obj)
+                        self.debug("remote create...(merged)", local_obj)
                         self._set_remote_expectation(local_obj, True)
 
     def _has_remote_expectation(self, local_obj):

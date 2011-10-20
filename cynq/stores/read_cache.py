@@ -9,14 +9,18 @@ class ReadCache(Proxy):
 
     def all_(self):
         if self.cache is None:
-            self.cache = set(self.store.all_())
+            self.cache = list(self.store.all_())
         return self.cache
 
     def create(self, obj):
         obj = super(ReadCache, self).create(obj)
-        self.cache.add(obj)
+        self.cache.append(obj)
         return obj
 
+
+    # is this even being used?  if it is then we're probably in trouble for Django Models that have id's of None
+    #    a call to this would wipe all None id's -- i think
+    #  I don't think it's being used though since ReadCache is only used by the local side which never does hard deletes-- i think
     def delete(self, obj):
         obj = super(ReadCache, self).delete(obj)
         self.cache.remove(obj)

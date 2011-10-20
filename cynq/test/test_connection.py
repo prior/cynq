@@ -50,10 +50,10 @@ class ConnectionTest(helper.TestCase):
 
     def test_inbound_create(self):
         remote_obj = self.materialize_remote_obj()
-        self.remote_store._all = set([remote_obj])
+        self.remote_store._all = [remote_obj]
         self.conn.inbound_create_and_update()
-        self.assertTrue(self.remote.sets_seem_equal(set([remote_obj]), self.remote.all_()))
-        self.assertTrue(self.remote.sets_seem_equal(set([remote_obj]), self.local.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([remote_obj], self.remote.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([remote_obj], self.local.all_()))
         local_obj = list(self.local.all_())[0]
         self.assertTrue(local_obj.remote_expectation)
         self.assertIsNone(local_obj.deleted_at)
@@ -65,13 +65,13 @@ class ConnectionTest(helper.TestCase):
         remote_obj = self.materialize_remote_obj()
         local_obj = self.materialize_local_obj(deleted_at=SaneTime().to_naive_utc_datetime(), key=remote_obj.key)
         extra = local_obj.extra
-        self.remote_store._all = set([remote_obj])
-        self.local_store._all = set([local_obj])
+        self.remote_store._all = [remote_obj]
+        self.local_store._all = [local_obj]
         self.assertFalse(local_obj.remote_expectation)
         self.assertIsNotNone(local_obj.deleted_at)
         self.conn.inbound_create_and_update()
-        self.assertTrue(self.remote.sets_seem_equal(set([remote_obj]), self.remote.all_()))
-        self.assertTrue(self.remote.sets_seem_equal(set([remote_obj]), self.local.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([remote_obj], self.remote.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([remote_obj], self.local.all_()))
         self.assertTrue(local_obj.remote_expectation)
         self.assertIsNone(local_obj.deleted_at)
         self.assertTrue(extra, local_obj.extra)
@@ -85,11 +85,11 @@ class ConnectionTest(helper.TestCase):
         remote_obj.change(['attr'])
         val = remote_obj.attr
         self.assertNotEquals(remote_obj.attr, local_obj.attr)
-        self.remote_store._all = set([remote_obj])
-        self.local_store._all = set([local_obj])
+        self.remote_store._all = [remote_obj]
+        self.local_store._all = [local_obj]
         self.conn.inbound_create_and_update()
-        self.assertTrue(self.remote.sets_seem_equal(set([remote_obj]), self.remote.all_()))
-        self.assertTrue(self.remote.sets_seem_equal(set([remote_obj]), self.local.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([remote_obj], self.remote.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([remote_obj], self.local.all_()))
         self.assertEquals(val, list(self.local.all_())[0].attr)
         self.assert_store_changes(self.local_store, all_calls=1)
         self.assert_store_changes(self.remote_store, all_calls=1)
@@ -97,34 +97,34 @@ class ConnectionTest(helper.TestCase):
     def test_inbound_delete(self):
         local_obj = self.materialize_local_obj(remote_expectation=True)
         local_obj.syncable_updated_at = local_obj.synced_at = SaneTime().to_naive_utc_datetime()
-        self.local_store._all = set([local_obj])
+        self.local_store._all = [local_obj]
         self.assertIsNone(local_obj.deleted_at)
         self.conn.inbound_delete(SaneTime().to_naive_utc_datetime())
         self.assertIsNotNone(local_obj.deleted_at)
-        self.assertEquals(set([local_obj]), self.local.all_())
+        self.assertEquals([local_obj], self.local.all_())
         self.assert_store_changes(self.local_store, all_calls=1)
         self.assert_store_changes(self.remote_store, all_calls=1)
 
     def test_outbound_delete(self):
         remote_obj = self.materialize_remote_obj()
         local_obj = self.remote.inbound_merge(self.materialize_local_obj(deleted_at=SaneTime().to_naive_utc_datetime(), remote_expectation=True, key=remote_obj.key), remote_obj)
-        self.remote_store._all = set([remote_obj])
-        self.local_store._all = set([local_obj])
+        self.remote_store._all = [remote_obj]
+        self.local_store._all = [local_obj]
         self.assertEquals(1, len(self.remote.all_()))
         self.conn.outbound_delete()
         self.assertEquals(0, len(self.remote.all_()))
-        self.assertTrue(self.remote.sets_seem_equal(set([local_obj]), self.local.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([local_obj], self.local.all_()))
         self.assert_store_changes(self.remote_store, deletes=[remote_obj], all_calls=1)
         self.assert_store_changes(self.local_store, all_calls=1)
 
     def test_outbound_create(self):
         local_obj = self.materialize_local_obj(owned=None)
         self.assertIsNone(local_obj.owned)
-        self.local_store._all = set([local_obj])
+        self.local_store._all = [local_obj]
         self.assertEquals(0, len(self.remote.all_()))
         self.conn.outbound_create_and_update()
         self.assertIsNotNone(local_obj.owned)
-        self.assertTrue(self.remote.sets_seem_equal(set([local_obj]), self.local.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([local_obj], self.local.all_()))
         self.assert_store_changes(self.remote_store, creates=[local_obj], all_calls=1)
         self.assert_store_changes(self.local_store, all_calls=1)
 
@@ -136,13 +136,13 @@ class ConnectionTest(helper.TestCase):
         local_obj.change(['attr'])
         val = local_obj.attr
         self.assertNotEquals(remote_obj.attr, local_obj.attr)
-        self.remote_store._all = set([remote_obj])
-        self.local_store._all = set([local_obj])
-        self.assertTrue(self.remote.sets_seem_equal(set([remote_obj]), self.remote.all_()))
-        self.assertTrue(self.remote.sets_seem_equal(set([local_obj]), self.local.all_()))
+        self.remote_store._all = [remote_obj]
+        self.local_store._all = [local_obj]
+        self.assertTrue(self.remote.sets_seem_equal([remote_obj], self.remote.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([local_obj], self.local.all_()))
         self.conn.outbound_create_and_update()
-        self.assertTrue(self.remote.sets_seem_equal(set([local_obj]), self.remote.all_()))
-        self.assertTrue(self.remote.sets_seem_equal(set([local_obj]), self.local.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([local_obj], self.remote.all_()))
+        self.assertTrue(self.remote.sets_seem_equal([local_obj], self.local.all_()))
         self.assertEquals(val, list(self.remote.all_())[0].attr)
         self.assert_store_changes(self.remote_store, updates=[remote_obj], all_calls=1)
         self.assert_store_changes(self.local_store, all_calls=1)

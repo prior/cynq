@@ -16,17 +16,17 @@ class FacetTest(helper.TestCase):
     def setUp(self):
         self.store = helper.TestStore()
         self.cache = Facet(self.store, 'attribute')
-        self.store._all = set(LIST)
+        self.store._all = LIST
 
     def tearDown(self):
         pass
 
     def test_list_cached(self):
-        self.assertEquals(set(LIST), self.cache.all_())
-        new_all = set(LIST+[TestObject()])
+        self.assertEquals(set(LIST), set(self.cache.all_()))
+        new_all = LIST+[TestObject()]
         self.store._all = new_all
-        self.assertEquals(set(LIST), self.cache.all_())
-        self.assertNotEquals(new_all, self.cache.all_())
+        self.assertEquals(set(LIST), set(self.cache.all_()))
+        self.assertNotEquals(set(new_all), set(self.cache.all_()))
         self.assert_store_changes(self.store, all_calls=1)
 
     def test_create_adjustment(self):

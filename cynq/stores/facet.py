@@ -7,7 +7,7 @@ class Facet(Proxy):
         self.cache = None
 
     def all_(self):
-        return set(self.dict_().values())
+        return self.dict_().values()
 
     def create(self, obj):
         obj = super(Facet,self).create(obj)
@@ -21,7 +21,9 @@ class Facet(Proxy):
 
     def dict_(self):
         if self.cache is None:
-            self.cache = dict((getattr(o,self.key_attribute),o) for o in self.store.all_() if getattr(o,self.key_attribute,None))
+            _all = self.store.all_()
+            self.cache = dict((getattr(o,self.key_attribute),o) for o in _all if getattr(o,self.key_attribute,None))
+            self.leftovers = dict((id(o),o) for o in _all if not getattr(o,self.key_attribute,None) or id(o) not in (id(q) for q in self.cache.values()))
         return self.cache
 
     def __iter__(self):
@@ -40,14 +42,22 @@ class Facet(Proxy):
         return set(self) - set(other)
 
 
-# these two are used only if hooked up to a MultiFacet
+# these two are also used by a MultiFacet if so hooked up
 
     def _key_created_if_not_exists(self, obj):
-        if getattr(obj, self.key_attribute, None):
-            self.dict_()[getattr(obj, self.key_attribute)] = obj
+        key_value = getattr(obj, self.key_attribute, None)
+        if key_value:
+            current_obj = self[key_value]
+            if current_obj and id(obj) != id(current_obj):
+                self.leftovers[id(current_obj)] = current_obj
+            self.dict_()[key_value] = obj
+        else:
+            self.leftovers[id(obj)] = obj
 
     def _key_deleted_if_exists(self, obj):
         key = getattr(obj, self.key_attribute, None)
         if key and key in self.dict_():
             del self.dict_()[key]
+        elif id(obj) in self.leftovers:
+            del self.leftovers[id(obj)]
 
