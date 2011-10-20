@@ -7,7 +7,7 @@ class Remote(base.Base):
     key_attribute = None
     remote_expectation_attribute = None
 
-    def __init__(self, store):
+    def __init__(self):
         super(Remote, self).__init__()
 
     def all_(self):

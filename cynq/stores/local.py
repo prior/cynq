@@ -5,7 +5,7 @@ class Local(base.Base):
     communal_attributes = []
     owned_attributes = []
 
-    def __init__(self, store):
+    def __init__(self):
         super(Local, self).__init__()
 
     def all_(self):
