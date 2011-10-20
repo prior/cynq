@@ -2,8 +2,10 @@ import unittest2
 from datetime import datetime
 from datetime import timedelta
 from cynq.controller import Controller
+from cynq.stores.facet import Facet
 from cynq.test import helper
 from sanetime.sanetime import SaneTime
+
 
 
 class TestRemote1(helper.TestStore):
@@ -42,8 +44,10 @@ class ControllerTest(helper.TestCase):
     def setUp(self):
         self.remote1_store = TestRemote1()
         self.remote2_store = TestRemote2()
+        self.facet1 = Facet(self.remote1_store, 'attr')
+        self.facet2 = Facet(self.remote2_store, 'attr')
         self.local_store = TestLocal()
-        self.controller = Controller(self.local_store, [self.remote1_store, self.remote2_store])
+        self.controller = Controller(self.local_store, [self.facet1, self.facet2])
 
     def tearDown(self):
         pass
@@ -67,10 +71,15 @@ class ControllerTest(helper.TestCase):
             TestObject(attr='E', owned1=None, owned2=None, extra='extra3E', deleted_at=None, remote1_expectation=False, remote2_expectation=False, syncable_updated_at=dt, synced_at=dt),
             TestObject(attr='G', owned1='owned2-G', owned2=None, extra='extra3G', deleted_at=dt, remote1_expectation=True, remote2_expectation=False, syncable_updated_at=dt+timedelta(1), synced_at=dt) ]
 
-        for o in self.local_store.all_():
-            o.deleted_at
-
         self.controller.sync()
+
+        self.remote1_store.reset()
+        self.remote2_store.reset()
+        self.local_store.reset()
+        # no changes should have happened on the second sync
+        self.controller.sync()
+        self.assert_store_changes(self.remote1_store, all_calls=0)
+        self.assert_store_changes(self.remote2_store, all_calls=0)
 
 
 

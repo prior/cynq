@@ -34,10 +34,7 @@ class TestObject(object):
 class TestStore(Base):
     def __init__(self):
         super(TestStore,self).__init__()
-        self.creates = []
-        self.updates = []
-        self.deletes = []
-        self.all_calls = 0 
+        self.reset()
 
     def all_(self):
         self.all_calls += 1
@@ -55,6 +52,11 @@ class TestStore(Base):
         self.deletes.append(obj)
         return obj
 
+    def reset(self):
+        self.creates = []
+        self.updates = []
+        self.deletes = []
+        self.all_calls = 0 
 
 
 class TestCase(unittest2.TestCase):

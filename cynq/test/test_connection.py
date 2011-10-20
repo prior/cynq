@@ -1,10 +1,12 @@
 import unittest2
-from datetime import datetime
 from datetime import timedelta
 from cynq.connection import Connection
 from cynq.stores.facet import Facet
 from cynq.test import helper
 from sanetime.sanetime import SaneTime
+
+import logger
+logger.configure_log()
 
 
 class TestRemote(helper.TestStore):
@@ -30,7 +32,6 @@ SIZE = 4
 LIST = [TestObject() for i in xrange(0,SIZE)]
 
 class ConnectionTest(helper.TestCase):
-
     def setUp(self):
         self.remote_store = TestRemote()
         self.remote = Facet(self.remote_store, 'key')

@@ -7,7 +7,7 @@ class NullHandler(logging.Handler):
 def get_log(cls=None, subname=None):
     cls_part = cls and '.%s'%str(cls).split("'")[1].split('.')[-1] or ''
     subname_part = subname and '.%s'%subname.strip() or ''
-    name = 'sync%s%s' % (subname_part, cls_part)
+    name = 'cynq%s%s' % (subname_part, cls_part)
     logger = logging.getLogger(name)
     logger.addHandler(NullHandler())
     return logger

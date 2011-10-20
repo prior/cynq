@@ -25,7 +25,7 @@ class LocalGlove(ReadCache):
             obj.synced_at = synced_at
             self.store.update(obj)
 
-        for obj in (set(self.created) - set(self.all_())):
+        for obj in self.created:
             obj.syncable_updated_at = synced_at
             obj.synced_at = synced_at
             self.store.create(obj)
