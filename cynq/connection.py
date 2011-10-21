@@ -20,7 +20,10 @@ class Connection(object):
         remote_class = str(self.remote.store.__class__)
         s = '%s: %s' % (remote_class, action)
         s += local_obj and '\n==== local_obj:\n%s'%pformat(vars(local_obj)) or ''
-        s += remote_obj and '\n==== remote_obj:\n%s'%pformat(vars(remote_obj)) or ''
+        caring_vars = self.remote.readable_attributes() + [self.remote.remote_expectation_attribute]
+        if remote_obj:
+            dict_ = dict((attr,getattr(remote_obj,attr,None)) for attr in caring_vars)
+            s += '\n==== remote_obj:\n%s'%pformat(dict_)
         self.log.debug(s)
 
     def inbound_create_and_update(self):
@@ -31,14 +34,14 @@ class Connection(object):
                 if local_obj.deleted_at:  
                     if not self._has_remote_expectation(local_obj): #reanimate
                         self.debug("local reanimate...", local_obj, remote_obj)
-                        self.remote.outbound_merge(local_obj, remote_obj)
+                        self.remote.merge_readables(local_obj, remote_obj)
                         local_obj.deleted_at=None
                         self._set_remote_expectation(local_obj, True)
                 else: 
                     if not self._has_local_changed_since_last_sync(local_obj): #update
-                        if not self.remote.objects_seem_equal(local_obj, remote_obj): # only if diff
+                        if not self.remote.readables_seem_equal(local_obj, remote_obj): # only if diff
                             self.debug("local update...", local_obj, remote_obj)
-                            self.remote.outbound_merge(local_obj,remote_obj)
+                            self.remote.merge_readables(local_obj,remote_obj)
                         self._set_remote_expectation(local_obj, True)
             else: #create
                 self.debug("local create...", None, remote_obj)
@@ -63,22 +66,22 @@ class Connection(object):
                 self.remote.delete(remote_obj)
                 self._set_remote_expectation(local_obj, False)
 
-    def outbound_create_and_update(self):  # including backing local to get at None keyed objects as well (i.e. to get at remote creates in the case this we've mapped a remotely 'owned' key field)
-        for local_obj in (self.local.all_() + self.local.leftovers.values()):
+    def outbound_create_and_update(self):
+        for local_obj in (self.local.all_() + self.local.leftovers.values()): # include leftovers since we may also want to create them (in the case that the key isn't generated til they are created remotely)
             if not local_obj.deleted_at: 
                 key = getattr(local_obj, self.remote.key_attribute, None)
                 if key and key in self.remote: #update
                     remote_obj = self.remote[key]
-                    if not self.remote.objects_seem_equal(local_obj, remote_obj): # only if diff
+                    if not self.remote.writeables_seem_equal(local_obj, remote_obj): # only if diff
                         self.debug("remote update...", local_obj, remote_obj)
-                        self.remote.update(self.remote.inbound_merge(remote_obj, local_obj))
+                        self.remote.update(self.remote.merge_writeables(remote_obj, local_obj))
                         self._set_remote_expectation(local_obj, True)
                 else: 
                     if not self._has_remote_expectation(local_obj): #create
                         self.debug("remote create...(initial)", local_obj)
                         new_remote_obj = self.remote.create(local_obj)
                         self.debug("remote create...(returned)", remote_obj = new_remote_obj)
-                        self.remote.outbound_merge(local_obj, new_remote_obj)
+                        self.remote.merge_readables(local_obj, new_remote_obj)
                         self.debug("remote create...(merged)", local_obj)
                         self._set_remote_expectation(local_obj, True)
 
