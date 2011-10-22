@@ -17,3 +17,9 @@ class Local(base.Base):
     def create(self, obj):
         raise NotImplementedError()
 
+    def before_sync_start(self):
+        raise NotImplementedError()
+    
+    def after_sync_finish(self):
+        raise NotImplementedError()
+

@@ -1,6 +1,8 @@
 import logger
 from pprint import pformat
-from pprint import pprint
+#from pprint import pprint
+
+
 #TODO: need to clean up relationship with local and decouple more -- right now it is very coupled - warning-- sizeable task!
 # model must have 'deleted_at', and 'exists_in_webinar' and 'exists_in_hubspot', and 'syncable_updated_at'
 
@@ -78,11 +80,9 @@ class Connection(object):
                         self._set_remote_expectation(local_obj, True)
                 else: 
                     if not self._has_remote_expectation(local_obj): #create
-                        self.debug("remote create...(initial)", local_obj)
+                        self.debug("remote create...", local_obj)
                         new_remote_obj = self.remote.create(local_obj)
-                        self.debug("remote create...(returned)", remote_obj = new_remote_obj)
                         self.remote.merge_readables(local_obj, new_remote_obj)
-                        self.debug("remote create...(merged)", local_obj)
                         self._set_remote_expectation(local_obj, True)
 
     def _has_remote_expectation(self, local_obj):

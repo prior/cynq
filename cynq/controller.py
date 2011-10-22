@@ -11,7 +11,8 @@ from sanetime.sanetime import SaneTime
 class Controller(object):
     def __init__(self, local_store, remote_stores):
         super(Controller,self).__init__()
-        self.gloved_local = LocalGlove(local_store)
+        self.local_store = local_store
+        self.gloved_local = LocalGlove(self.local_store)
         self.multifaceted_local = MultiFacet(self.gloved_local)
         self.connections = []
         for remote in remote_stores:
@@ -21,12 +22,15 @@ class Controller(object):
             self.connections.append(conn)
 
     def sync(self):
-        synced_at = SaneTime().to_naive_utc_datetime()
-        self._inbound_create_and_update()
-        self._inbound_delete(synced_at)
-        self._outbound_delete()
-        self._outbound_create_and_update()
-        self.gloved_local.persist(synced_at)
+        if self.local_store.before_sync_start():
+            synced_at = SaneTime().to_naive_utc_datetime()
+            self._inbound_create_and_update()
+            self._inbound_delete(synced_at)
+            self._outbound_delete()
+            self._outbound_create_and_update()
+            self.gloved_local.persist(synced_at)
+            return self.local_store.after_sync_finish()
+        return False
 
     def _inbound_create_and_update(self):
         for conn in self.connections:
