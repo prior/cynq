@@ -2,7 +2,7 @@ from stores.facet import Facet
 from stores.multi_facet import MultiFacet
 from connection import Connection
 from stores.local_glove import LocalGlove
-from sanetime.sanetime import SaneTime
+from sanetime import sanetime
 
 # lots of assumption here:
   # 1) remote store returns no soft_delete items in its list-- not taking that possibility into account right now
@@ -23,7 +23,7 @@ class Controller(object):
 
     def sync(self):
         if self.local_store.before_sync_start():
-            synced_at = SaneTime().to_naive_utc_datetime()
+            synced_at = sanetime()
             self._inbound_create_and_update()
             self._inbound_delete(synced_at)
             self._outbound_delete()

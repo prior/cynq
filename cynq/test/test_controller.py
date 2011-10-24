@@ -1,10 +1,9 @@
 import unittest2
-from datetime import datetime
 from datetime import timedelta
 from cynq.controller import Controller
 from cynq.stores.facet import Facet
 from cynq.test import helper
-from sanetime.sanetime import SaneTime
+from sanetime import sanetime
 
 
 
@@ -33,6 +32,10 @@ class TestRemote2(helper.TestStore):
 class TestLocal(helper.TestStore):
     communal_attributes = ['attr','owned1','owned2','extra','remote1_expectation', 'remote2_expectation']
     owned_attributes = ['id']
+    def before_sync_start(self):
+        pass
+    def after_sync_finish(self):
+        pass
 
 class TestObject(helper.TestObject):
     prepopulate_attributes = False 
@@ -53,7 +56,7 @@ class ControllerTest(helper.TestCase):
         pass
 
     def test_sync(self):
-        dt = SaneTime().to_naive_utc_datetime()
+        dt = sanetime().to_naive_utc_datetime()
         self.remote1_store._all = [
             TestObject(attr='A', owned1='owned1-A', extra='extra1A'),
             TestObject(attr='B', owned1='owned1-B', extra='extra1B'),

@@ -21,12 +21,12 @@ class LocalGlove(ReadCache):
     # purposefully going through all objects and saving them one by one
     def persist(self, synced_at):
         for obj in self.all_():
-            obj.syncable_updated_at = synced_at
-            obj.synced_at = synced_at
+            obj.syncable_updated_at = synced_at.to_naive_utc_datetime()
+            obj.synced_at = synced_at.to_naive_utc_datetime()
             self.store.update(obj)
 
         for obj in self.created:
-            obj.syncable_updated_at = synced_at
-            obj.synced_at = synced_at
+            obj.syncable_updated_at = synced_at.to_naive_utc_datetime()
+            obj.synced_at = synced_at.to_naive_utc_datetime()
             self.store.create(obj)
 

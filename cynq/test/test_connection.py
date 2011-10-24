@@ -3,7 +3,7 @@ from datetime import timedelta
 from cynq.connection import Connection
 from cynq.stores.facet import Facet
 from cynq.test import helper
-from sanetime.sanetime import SaneTime
+from sanetime import sanetime
 
 import logger
 logger.configure_log()
@@ -23,6 +23,7 @@ class TestRemote(helper.TestStore):
 class TestLocal(helper.TestStore):
     communal_attributes = ['key','owned','attr','extra','remote_expectation']
     owned_attributes = ['id']
+
 
 class TestObject(helper.TestObject):
     prepopulate_attributes = True
@@ -63,7 +64,7 @@ class ConnectionTest(helper.TestCase):
 
     def test_inbound_reanimate(self):
         remote_obj = self.materialize_remote_obj()
-        local_obj = self.materialize_local_obj(deleted_at=SaneTime().to_naive_utc_datetime(), key=remote_obj.key)
+        local_obj = self.materialize_local_obj(deleted_at=sanetime().to_naive_utc_datetime(), key=remote_obj.key)
         extra = local_obj.extra
         self.remote_store._all = [remote_obj]
         self.local_store._all = [local_obj]
@@ -81,7 +82,7 @@ class ConnectionTest(helper.TestCase):
     def test_inbound_update(self):
         remote_obj = self.materialize_remote_obj()
         local_obj = self.remote.merge_readables(self.materialize_local_obj(remote_expectation=True, key=remote_obj.key), remote_obj)
-        local_obj.syncable_updated_at = local_obj.synced_at = SaneTime().to_naive_utc_datetime()
+        local_obj.syncable_updated_at = local_obj.synced_at = sanetime().to_naive_utc_datetime()
         remote_obj.change(['attr'])
         val = remote_obj.attr
         self.assertNotEquals(remote_obj.attr, local_obj.attr)
@@ -96,10 +97,10 @@ class ConnectionTest(helper.TestCase):
 
     def test_inbound_delete(self):
         local_obj = self.materialize_local_obj(remote_expectation=True)
-        local_obj.syncable_updated_at = local_obj.synced_at = SaneTime().to_naive_utc_datetime()
+        local_obj.syncable_updated_at = local_obj.synced_at = sanetime().to_naive_utc_datetime()
         self.local_store._all = [local_obj]
         self.assertIsNone(local_obj.deleted_at)
-        self.conn.inbound_delete(SaneTime().to_naive_utc_datetime())
+        self.conn.inbound_delete(sanetime().to_naive_utc_datetime())
         self.assertIsNotNone(local_obj.deleted_at)
         self.assertEquals([local_obj], self.local.all_())
         self.assert_store_changes(self.local_store, all_calls=1)
@@ -107,7 +108,7 @@ class ConnectionTest(helper.TestCase):
 
     def test_outbound_delete(self):
         remote_obj = self.materialize_remote_obj()
-        local_obj = self.remote.merge_readables(self.materialize_local_obj(deleted_at=SaneTime().to_naive_utc_datetime(), remote_expectation=True, key=remote_obj.key), remote_obj)
+        local_obj = self.remote.merge_readables(self.materialize_local_obj(deleted_at=sanetime().to_naive_utc_datetime(), remote_expectation=True, key=remote_obj.key), remote_obj)
         self.remote_store._all = [remote_obj]
         self.local_store._all = [local_obj]
         self.assertEquals(1, len(self.remote.all_()))
@@ -131,7 +132,7 @@ class ConnectionTest(helper.TestCase):
     def test_outbound_update(self):
         remote_obj = self.materialize_remote_obj()
         local_obj = self.remote.merge_readables(self.materialize_local_obj(remote_expectation=True, key=remote_obj.key), remote_obj)
-        local_obj.syncable_updated_at = SaneTime().to_naive_utc_datetime()
+        local_obj.syncable_updated_at = sanetime().to_naive_utc_datetime()
         local_obj.synced_at = local_obj.syncable_updated_at - timedelta(1)
         local_obj.change(['attr'])
         val = local_obj.attr
