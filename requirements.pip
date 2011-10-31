@@ -1,4 +1,4 @@
 nose
 unittest2
-#-e git://github.com/prior/sanetime.git@v3.0.1#egg=sanetime-3.0.1
--e ../sanetime
+-e git://github.com/prior/sanetime.git@v3.0.1#egg=sanetime-3.0.1
+#-e ../sanetime
