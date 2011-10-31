@@ -1,5 +1,4 @@
 import unittest2
-from datetime import timedelta
 from cynq.controller import Controller
 from cynq.stores.facet import Facet
 from cynq.test import helper
@@ -56,7 +55,7 @@ class ControllerTest(helper.TestCase):
         pass
 
     def test_sync(self):
-        dt = sanetime().to_naive_utc_datetime()
+        st = sanetime()
         self.remote1_store._all = [
             TestObject(attr='A', owned1='owned1-A', extra='extra1A'),
             TestObject(attr='B', owned1='owned1-B', extra='extra1B'),
@@ -69,10 +68,10 @@ class ControllerTest(helper.TestCase):
             TestObject(attr='E', owned2='owned2-E'),
             TestObject(attr='F', owned2='owned2-F') ]
         self.local_store._all = [
-            TestObject(attr='B', owned1='owned1-B', owned2=None, extra='extra1B', deleted_at=dt, remote1_expectation=True, remote2_expectation=False, syncable_updated_at=dt, synced_at=dt),
-            TestObject(attr='C', owned2='owned2-D', owned1=None, extra='extra3C', deleted_at=None, remote1_expectation=False, remote2_expectation=True, syncable_updated_at=dt+timedelta(1), synced_at=dt), 
-            TestObject(attr='E', owned1=None, owned2=None, extra='extra3E', deleted_at=None, remote1_expectation=False, remote2_expectation=False, syncable_updated_at=dt, synced_at=dt),
-            TestObject(attr='G', owned1='owned2-G', owned2=None, extra='extra3G', deleted_at=dt, remote1_expectation=True, remote2_expectation=False, syncable_updated_at=dt+timedelta(1), synced_at=dt) ]
+            TestObject(attr='B', owned1='owned1-B', owned2=None, extra='extra1B', deleted_at=st, remote1_expectation=True, remote2_expectation=False, syncable_updated_at=st, synced_at=st),
+            TestObject(attr='C', owned2='owned2-D', owned1=None, extra='extra3C', deleted_at=None, remote1_expectation=False, remote2_expectation=True, syncable_updated_at=st+1, synced_at=st), 
+            TestObject(attr='E', owned1=None, owned2=None, extra='extra3E', deleted_at=None, remote1_expectation=False, remote2_expectation=False, syncable_updated_at=st, synced_at=st),
+            TestObject(attr='G', owned1='owned2-G', owned2=None, extra='extra3G', deleted_at=st, remote1_expectation=True, remote2_expectation=False, syncable_updated_at=st+1, synced_at=st) ]
 
         self.controller.sync()
 
