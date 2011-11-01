@@ -1,7 +1,9 @@
+import logger
 from stores.facet import Facet
 from stores.multi_facet import MultiFacet
 from connection import Connection
 from stores.local_glove import LocalGlove
+
 from sanetime import sanetime
 
 # lots of assumption here:
@@ -14,6 +16,7 @@ class Controller(object):
         self.local_store = local_store
         self.gloved_local = LocalGlove(self.local_store)
         self.multifaceted_local = MultiFacet(self.gloved_local)
+        self.log = logger.get_log()
         self.connections = []
         for remote in remote_stores:
             faceted_remote = Facet(remote, remote.key_attribute)
@@ -30,6 +33,7 @@ class Controller(object):
             self._outbound_create_and_update()
             self.gloved_local.persist(synced_at)
             return self.local_store.after_sync_finish()
+        self.log.warn("Cynqing aborted cuz before_sync_start returned False")
         return False
 
     def _inbound_create_and_update(self):
