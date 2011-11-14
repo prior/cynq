@@ -57,7 +57,7 @@ class Controller(object):
     def _log_results(self):
         for conn in self.connections:
             self.log.info(
-                "cynq stats ( remote=%s, local[ reanimates=%s creates=%s updates=%s deletes%s ] remote[ deletes=%s updates=%s creates=%s ] )" % (
+                "cynq stats ( remote=%s, local[ reanimates=%s creates=%s updates=%s deletes=%s ] remote[ deletes=%s updates=%s creates=%s ] )" % (
                     conn.remote,
                     len(conn.stats['local_reanimates']),
                     len(conn.stats['local_creates']),

@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='cynq',
-    version='1.1.3',
+    version='1.1.4',
     description='A data synchronizer',
     author='Michael Prior',
     author_email='prior@cracklabs.com',

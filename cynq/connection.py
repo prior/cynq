@@ -32,16 +32,6 @@ class Connection(object):
             'remote_updates':[],
             'remote_creates':[] }
 
-    def debug(self, action, local_obj=None, remote_obj=None):
-        remote_class = str(self.remote.store.__class__)
-        s = '%s: %s' % (remote_class, action)
-        s += local_obj and '\n==== local_obj:\n%s'%pformat(vars(local_obj)) or ''
-        caring_vars = self.remote.readable_attributes() + [self.remote.remote_expectation_attribute]
-        if remote_obj:
-            dict_ = dict((attr,getattr(remote_obj,attr,None)) for attr in caring_vars)
-            s += '\n==== remote_obj:\n%s'%pformat(dict_)
-        self.log.debug(s)
-
     def _local_reanimate(self, local_obj, remote_obj):
         change_dict = self.remote.change_dict_if_merge_readables(local_obj, remote_obj)
         previous_caring_dict = self.local.caring_dict(local_obj, self.remote.remote_expectation_attribute, 'deleted_at')
@@ -61,7 +51,7 @@ class Connection(object):
         change_dict = self.remote.change_dict_if_merge_readables(local_obj, remote_obj)
         self.remote.merge_readables(local_obj,remote_obj)
         self._set_remote_expectation(local_obj, True)
-        self.stats['local_updates'].extend(self.local.key_attribute_value(local_obj))
+        self.stats['local_updates'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
             "local update... ( remote=%s, changes=%s, previous_local=%s, final_local=%s )" % (
                 self.remote,
@@ -74,7 +64,7 @@ class Connection(object):
         local_obj = self.local.create(remote_obj)
         local_obj.deleted_at = local_obj.synced_at = local_obj.syncable_updated_at = None
         self._set_remote_expectation(local_obj, True)
-        self.stats['local_creates'].extend(self.local.key_attribute_value(local_obj))
+        self.stats['local_creates'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
             "local create... ( remote=%s, changes=%s, final_local=%s )" % (
                 self.remote,
@@ -84,7 +74,7 @@ class Connection(object):
     def _local_delete(self, local_obj, synced_at):
         local_obj.deleted_at = synced_at
         self._set_remote_expectation(local_obj, False)
-        self.stats['local_deletes'].extend(self.local.key_attribute_value(local_obj))
+        self.stats['local_deletes'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
             "local delete... ( remote=%s, final_local=%s )" % (
                 self.remote,
@@ -93,7 +83,7 @@ class Connection(object):
     def _remote_delete(self, local_obj, remote_obj):
         self.remote.delete(remote_obj)
         self._set_remote_expectation(local_obj, False)
-        self.stats['remote_deletes'].extend(self.local.key_attribute_value(local_obj))
+        self.stats['remote_deletes'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
             "remote deleted... ( remote=%s, final_local=%s )" % (
                 self.remote,
@@ -103,7 +93,7 @@ class Connection(object):
         change_dict = self.remote.change_dict_if_merge_writeables(remote_obj, local_obj)
         self.remote.update(self.remote.merge_writeables(remote_obj, local_obj))
         self._set_remote_expectation(local_obj, True)
-        self.stats['remote_updates'].extend(self.local.key_attribute_value(local_obj))
+        self.stats['remote_updates'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
             "remote update... ( remote=%s, changes=%s, final_remote=%s, final_local=%s )" % (
                 self.remote,
@@ -115,7 +105,7 @@ class Connection(object):
         new_remote_obj = self.remote.create(local_obj)
         self.remote.merge_readables(local_obj, new_remote_obj)
         self._set_remote_expectation(local_obj, True)
-        self.stats['remote_creates'].extend(self.local.key_attribute_value(local_obj))
+        self.stats['remote_creates'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
             "remote create... ( remote=%s, final_remote=%s, final_local=%s )" % (
                 self.remote,
