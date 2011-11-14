@@ -41,6 +41,10 @@ class Facet(Proxy):
     def __sub__(self, other): # other must also be a Facet
         return set(self) - set(other)
 
+    def __unicode__(self):
+        return 'Facet(%s)' % self.store
+
+
 
 # these two are also used by a MultiFacet if so hooked up
 

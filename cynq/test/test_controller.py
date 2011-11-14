@@ -4,6 +4,8 @@ from cynq.stores.facet import Facet
 from cynq.test import helper
 from sanetime import sanetime
 
+import logger
+logger.configure_log()
 
 
 class TestRemote1(helper.TestStore):
@@ -16,6 +18,10 @@ class TestRemote1(helper.TestStore):
         obj = super(TestRemote1, self).create(obj)
         obj.change(['owned1'])
         return obj
+    def __unicode__(self):
+        return 'TestRemote1'
+    def __str__(self):
+        return self.__unicode__()
 
 class TestRemote2(helper.TestStore):
     communal_attributes = ['attr']
@@ -27,14 +33,22 @@ class TestRemote2(helper.TestStore):
         obj = super(TestRemote2, self).create(obj)
         obj.change(['owned2'])
         return obj
+    def __unicode__(self):
+        return 'TestRemote2'
+    def __str__(self):
+        return self.__unicode__()
 
 class TestLocal(helper.TestStore):
     communal_attributes = ['attr','owned1','owned2','extra','remote1_expectation', 'remote2_expectation']
     owned_attributes = ['id']
     def before_sync_start(self):
-        pass
+        return True
     def after_sync_finish(self):
         pass
+    def __unicode__(self):
+        return 'TestLocal'
+    def __str__(self):
+        return self.__unicode__()
 
 class TestObject(helper.TestObject):
     prepopulate_attributes = False 

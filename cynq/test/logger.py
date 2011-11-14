@@ -12,10 +12,10 @@ def configure_log():
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter('%(asctime)s %(levelname)-5s %(name)s == %(message)s')
+    formatter = logging.Formatter('%(asctime)s %(levelname)-5s %(name)s === %(message)s')
     file_handler.setFormatter(formatter)
 
-    formatter = logging.Formatter('%(asctime)s %(levelname)-5s %(name)s == %(message)s', datefmt='%M:%S')
+    formatter = logging.Formatter('%(asctime)s %(levelname)-5s %(name)s === %(message)s', datefmt='%M:%S')
     console_handler.setFormatter(formatter)
 
     log.addHandler(file_handler)
