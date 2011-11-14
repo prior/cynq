@@ -19,5 +19,11 @@ class Proxy(base.Base):
 
     def delete(self, obj):
         return self.store.delete(obj)
+
+    def __unicode__(self):
+        return 'Proxy(%s)' % self.store
+
+    def __str__(self):
+        return self.__unicode__()
     
 

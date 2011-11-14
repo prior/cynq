@@ -34,6 +34,9 @@ class Base(object):
         raise NotImplementedError()
 
 
+    def key_attribute_value(self, obj):
+        return getattr(obj, self.key_attribute)
+
     def writeable_attributes(self):
         if not getattr(self, '_writeable_attributes', None):
             self._writeable_attributes = set(getattr(self, 'communal_attributes', []))
@@ -77,4 +80,27 @@ class Base(object):
             setattr(target, attr, getattr(source, attr, None))
         return target
         
+    def change_dict_if_merge_readables(self, target, source):
+        """ if a merge were performed, what would the diff be? """
+        change_dict = {}
+        for attr in self.readable_attributes():
+            if getattr(source, attr, None) != getattr(target, attr, None):
+                change_dict[attr] = getattr(source, attr, None)
+        return change_dict
+
+    def change_dict_if_merge_writeables(self, target, source):
+        """ if a merge were performed, what would the diff be? """
+        change_dict = {}
+        for attr in self.writeable_attributes():
+            if getattr(source, attr, None) != getattr(target, attr, None):
+                change_dict[attr] = getattr(source, attr, None)
+        return change_dict
+
+    def caring_dict(self, obj, *extras):
+        caring_dict = {}
+        for attr in self.readable_attributes() + list(extras):
+            caring_dict[attr] = getattr(obj, attr, None)
+        return caring_dict
+
+
         

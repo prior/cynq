@@ -19,9 +19,20 @@ class TestRemote(helper.TestStore):
         obj.change(['owned'])
         return obj
 
+    def __unicode__(self):
+        return 'TestRemote'
+
+    def __str__(self):
+        return self.__unicode__()
+
 class TestLocal(helper.TestStore):
     communal_attributes = ['key','owned','attr','extra','remote_expectation']
     owned_attributes = ['id']
+
+    def __unicode__(self):
+        return 'TestLocal'
+    def __str__(self):
+        return self.__unicode__()
 
 
 class TestObject(helper.TestObject):
