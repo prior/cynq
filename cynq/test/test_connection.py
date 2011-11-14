@@ -21,7 +21,6 @@ class TestRemote(helper.TestStore):
 
     def __unicode__(self):
         return 'TestRemote'
-
     def __str__(self):
         return self.__unicode__()
 
