@@ -1,4 +1,5 @@
 import logging_helper
+from copy import copy
 from pprint import pformat
 #from pprint import pprint
 
@@ -50,6 +51,8 @@ class Connection(object):
         previous_caring_dict = self.local.caring_dict(local_obj, self.remote.remote_expectation_attribute)
         change_dict = self.remote.change_dict_if_merge_readables(local_obj, remote_obj)
         self.remote.merge_readables(local_obj,remote_obj)
+        if hasattr(local_obj, 'local_post_cynq_local_update'):
+            local_obj.local_post_cynq_local_update()
         self._set_remote_expectation(local_obj, True)
         self.stats['local_updates'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
@@ -61,7 +64,9 @@ class Connection(object):
 
     def _local_create(self, remote_obj):
         change_dict = self.remote.caring_dict(remote_obj)
-        local_obj = self.local.create(remote_obj)
+        local_obj = self.local.create(copy(remote_obj))
+        if hasattr(local_obj, 'local_post_cynq_local_create'):
+            local_obj.local_post_cynq_local_create()
         local_obj.deleted_at = local_obj.synced_at = local_obj.syncable_updated_at = None
         self._set_remote_expectation(local_obj, True)
         self.stats['local_creates'].extend([self.local.key_attribute_value(local_obj)])
@@ -92,6 +97,7 @@ class Connection(object):
     def _remote_update(self, local_obj, remote_obj):
         change_dict = self.remote.change_dict_if_merge_writeables(remote_obj, local_obj)
         self.remote.update(self.remote.merge_writeables(remote_obj, local_obj))
+        self.remote.merge_readables(local_obj, remote_obj) # merge back any changes because of update
         self._set_remote_expectation(local_obj, True)
         self.stats['remote_updates'].extend([self.local.key_attribute_value(local_obj)])
         self.log.debug(
