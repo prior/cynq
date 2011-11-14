@@ -11,6 +11,12 @@ from pprint import pformat
 #TODO: need to guard against external outages, and trying to keep db consistent
 
 #TODO: need to consider whether we'd only ever get info back on creaets-- currently designed to only look for info back on outbound creates-- need to document either way
+
+#TODO: need to think about difference between a truly shared attribute that you can possible change
+#         versus an attribute that is only reported on somewhere else, i.e. owned, shared, and
+#         (audited? or reported? or logged? or something that designates this store cares and
+#         records this particular value but will never be changing it -- right now that has to be
+#         designated as 'shareable'
 class Connection(object):
     def __init__(self, faceted_local, faceted_remote):
         super(Connection,self).__init__()
