@@ -13,6 +13,7 @@ from sanetime import sanetime
 class Controller(object):
     def __init__(self, local_store, remote_stores):
         super(Controller,self).__init__()
+        self.total_changes = 0
         self.local_store = local_store
         self.gloved_local = LocalGlove(self.local_store)
         self.multifaceted_local = MultiFacet(self.gloved_local)
@@ -34,7 +35,7 @@ class Controller(object):
             self._outbound_create_and_update()
             self._log_results()
             self.gloved_local.persist(synced_at)
-            return self.local_store.after_sync_finish()
+            return self.local_store.after_sync_finish(self.total_changes > 0)
         self.log.warn("cynq-ing never attempted cuz before_sync_start returned False")
         return False
 
@@ -55,6 +56,7 @@ class Controller(object):
             conn.outbound_create_and_update()
 
     def _log_results(self):
+        self.total_changes = 0
         for conn in self.connections:
             self.log.info(
                 "cynq stats ( remote=%s, local[ reanimates=%s creates=%s updates=%s deletes=%s ] remote[ deletes=%s updates=%s creates=%s ] )" % (
@@ -81,6 +83,6 @@ class Controller(object):
                 self.log.debug("cynq stats ( remote=%s, remote updates=%s )" % (conn.remote, conn.stats['remote_updates']))
             if conn.stats['remote_creates']:
                 self.log.debug("cynq stats ( remote=%s, remote creates=%s )" % (conn.remote, conn.stats['remote_creates']))
-
+            self.total_changes += sum([len(conn.stats[k]) for k in conn.stats])
 
 
