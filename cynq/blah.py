@@ -39,21 +39,18 @@ class Local(object):
 
 
 def test_createable():
+    rs = RemoteTestStore([])
+    l = LocalStore(self.local_seed)
+    l.out_create(rs)
+    self.assertEquals(self.local_seed, l.all_())
+
     class RS(RemoteTestStore): createable=False
     rs = RS([])
-    l = LocalStore(
+    l = LocalStore(self.local_seed)
+    l.out_create(rs)
+    self.assertEquals(self.local_seed, l.all_())
+    rs.all_()
 
-
-    r1 = RemoteStore1
-
-
-
-
-
-
-
-def test
-    
 
 
 def test_ordering_of_inbound_changes():
