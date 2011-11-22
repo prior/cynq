@@ -3,22 +3,28 @@ from sanetime import sanetime
 
 
 class Base(object):
-    def __init__(self)
-        super(BaseStore
+    def __init__(self, spec):
+        super(Base, self).__init__()
+        self.spec = spec
         self._list = None
+
+    def _force_all_():
+
+    def create(obj):
 
     def _force_get_list(self):
         return self.spec.all_()
 
     def _get_list(self):
         if self._list is None:
-            self._list = self.self._force_get_list()
+            self._list = self._force_get_list()
         return self._list
     list_ = property(_get_list)
 
     def _force_build_hash(self, key_attr):
         return dict((o[key_attr],o) for o in self.list_ if o.get(key_attr) is not None)
 
+    def 
 
 
 

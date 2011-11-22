@@ -1,11 +1,10 @@
-
-
 class RemoteStore1(object):
     # all options possible
     pushed = ['one']
     pulled = ['two']
     shared = ['key','share']
     key = 'key'
+    since = 'updated_at'
 
     createable = True
     deleteable = True
