@@ -1,9 +1,5 @@
-class Error(StandardError):
+class Error(Exception):
     """Base class for exceptions in this package"""
-    pass
-
-class StoreError(Error):
-    """Error interacting with backing store"""
     pass
 
 class ConnectionPhaseError(Error):

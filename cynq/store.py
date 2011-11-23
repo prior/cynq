@@ -1,35 +1,112 @@
-import logging_helper
-from sanetime import sanetime
+#_TODO: figure out implications of an update of a key attribute-- should we be disallowing such an action
 
-
-class Base(object):
+class BaseStore(object):
     def __init__(self, spec):
-        super(Base, self).__init__()
+        super(BaseStore, self).__init__()
         self.spec = spec
         self._list = None
-
-    def _force_all_():
-
-    def create(obj):
+        self._queued = {'creates':[], 'updates':[], 'deletes':[]}
 
     def _force_get_list(self):
-        return self.spec.all_()
+        return self.spec._all()
 
     def _get_list(self):
         if self._list is None:
-            self._list = self._force_get_list()
+            self._list = self.self._force_get_list()
         return self._list
     list_ = property(_get_list)
 
     def _force_build_hash(self, key_attr):
         return dict((o[key_attr],o) for o in self.list_ if o.get(key_attr) is not None)
 
-    def 
+    # playing with objects in that exist in the _list
+    def create(self, objs, persist=False): return self.change(objs, 'create', persist)
+    def update(self, objs, persist=False): return self.change(objs, 'update', persist)
+    def delete(self, objs, persist=False): return self.change(objs, 'delete', persist)
+    def change(self, objs, change_type, persist=False):
+        self._queued['%ss'%change_type].append(objs)
+        getattr(self,'_%sd'%change_type)(objs)
+        if persist: self.persist_changes()
 
+    def persist_changes(self):
+        for change_type in ['create','update','delete']:
+            queue = self._queued['%ss'%change_type]
+            if queue:
+                getattr(self.spec,'_batch_%s'%change_type)(queue)
+
+
+    def _created(self, objs): self.list_.extend(objs)
+    def _updated(self, objs): pass
+    def _deleted(self, objs): [self.list_.remove(o) for o in objs]
+
+
+
+
+
+
+class LocalStore(BaseStore):
+    def __init__(self, spec):
+        self._hashes = {}
+        
+    def get_hash(self, key_attr):
+        if self._hashes.get(key_attr) is None:
+            self._hashes[key_attr] = self.force_build_hash(key_attr)
+        return self._hashes[key_attr]
+
+    # playing with objects in that exist in the _list
+    def _created(self, objs):
+        super(BaseStore,self)._created(self, objs)
+        for key in self._hashes:
+            for obj in objs:
+                key_value = obj.get(key)
+                if key_value is not None:
+                    if key_value in self.hash_: raise Error("key already exists!")  #_TODO: embellish
+                    if obj in self.values(): raise Error("obj already in hash!")  #_TODO: embellish
+                    self._hashes[key][key_value] = obj
+
+    def _updated(self, obj):
+        super(BaseStore,self)._updated(self, objs)
+        for key in self._hashes:
+            for obj in objs:
+                key_value = obj.get(key)
+                if key_value is not None:
+                    if key_value in self.hash_ and self.hash_[key_value] != obj: 
+                        raise Error("object should be the same!")  #_TODO: embellish
+                    if key_value in s
+                else:
+                    if obj in self.values(): raise Error("obj already in hash!")  #_TODO: embellish
+                    self._hashes[
+
+
+            key_value = obj.get(self.spec.key)
+            if key_value is None: raise Error("this needs to have a key")  #_TODO: embellish
+            if key_value not in self.hash_: raise Error("key should already exist!")  #_TODO: embellish
+            if self.hash_[key_value] != obj: raise Error("object should be the same!")  #_TODO: embellish
+
+    def _deleted(self, obj): self.list_.remove(obj)
+        super(RemoteStore,self)._deleted(self, objs)
+        for obj in objs:
+            key_value = obj.get(self.spec.key)
+            if key_value is None: raise Error("this needs to have a key")  #_TODO: embellish
+            if key_value not in self.hash_: raise Error("key should already exist!")  #_TODO: embellish
+            del self.hash_[key_value]
+
+
+            if self.remote_spec.since and self.remote_spec.sinceable and self.local_objects: 
+                since = max(lo[self.remote_spec.since] for lo in self.local_objects)
+                self._remote_objects = dict(
+                    (self.
+               self.max_since(self.remote_speclocal_objects = 
+
+            else:
+
+        return self._remote_objects
+    objects = property(_get_objects)
 
 
 class RemoteStore(BaseStore):
-    def __init__():
+    def __init__(self, spec):
+        super(RemoteStore,self).__init__(self, spec)  #_TODO: ensure that spec passed is a remote spec
         self._hash = None
 
     def _get_hash(self):
@@ -47,123 +124,38 @@ class RemoteStore(BaseStore):
                     (self.
                self.max_since(self.remote_speclocal_objects = 
 
-class LocalStore(BaseStore):
-    def __init__():
-        self._hashes = {}
         
-    def get_hash(self, key_attr):
-        if self._hashes.get(key_attr) is None:
-            self._hashes[key_attr] = self.force_build_hash(key_attr)
-        return self._hashes[key_attr]
+
+    def _created(self, objs):
+        super(RemoteStore,self)._created(self, objs)
+        for obj in objs:
+            for key in self._hashes:
+                key_value = obj.get(key)
+                self._hash_[key_value] = obj
+                if key_value is None: raise Error("this needs to have a key")  #_TODO: embellish
+                if key_value in self.hash_: raise Error("key already exists!")  #_TODO: embellish
+                self.hash_[key_value] = obj
+
+    def _updated(self, obj): pass
+        super(RemoteStore,self)._updated(self, objs)
+        for obj in objs:
+            key_value = obj.get(self.spec.key)
+            if key_value is None: raise Error("this needs to have a key")  #_TODO: embellish
+            if key_value not in self.hash_: raise Error("key should already exist!")  #_TODO: embellish
+            if self.hash_[key_value] != obj: raise Error("object should be the same!")  #_TODO: embellish
+
+    def _deleted(self, obj): self.list_.remove(obj)
+        super(RemoteStore,self)._deleted(self, objs)
+        for obj in objs:
+            key_value = obj.get(self.spec.key)
+            if key_value is None: raise Error("this needs to have a key")  #_TODO: embellish
+            if key_value not in self.hash_: raise Error("key should already exist!")  #_TODO: embellish
+            del self.hash_[key_value]
 
 
+    def writablely_clone(self, obj):
+        return dict((attr, obj.get(attr)) for attr in (self.spec.shared + self.spec.pulled))
 
-
-
-            if self.remote_spec.since and self.remote_spec.sinceable and self.local_objects: 
-                since = max(lo[self.remote_spec.since] for lo in self.local_objects)
-                self._remote_objects = dict(
-                    (self.
-               self.max_since(self.remote_speclocal_objects = 
-
-            else:
-
-        return self._remote_objects
-    objects = property(_get_objects)
-
-class RemoteStore(object):
-    def __init__(self, remote_spec):
-        self.remote_spec = spec
-
-    def _force_get_objects(self):
-        if self.spec.sinceable and self.spec.since and self.local_objects: 
-            since = max(lo[self.spec.since] for lo in self.local_objects)
-            list
-            self.spec.all_(since = since)
-            objects = dict((self.speck.key for lo in self.
-                    (self.
-               self.max_since(self.remote_speclocal_objects = 
-            
-        else:
-            return super(RemoteStore, self)._force_get_objects()
-
-
-        else:
-            
-                self_remote_objects = self.remote_spec.all_()
-
-        return self._remote_objects
-    objects = property(_get_objects)
-
-
-class Junction(object):
-    def __init__(self, local_store, remote_store):
-        super(Junction, self).__init__()
-        self.log = logging_helper.get_log('cynq.junction')
-        self.ls = local_store
-        self.rs = remote_store
-        self._remote_objects = None
-
-    def _get_remote_objects(self):
-        if self._remote_objects is None:
-            if self.remote_spec.since and self.remote_spec.sinceable and self.local_objects: 
-                since = max(lo[self.remote_spec.since] for lo in self.local_objects)
-                self._remote_objects = dict(
-                    (self.
-               self.max_since(self.remote_speclocal_objects = 
-
-            else:
-                self_remote_objects = self.remote_spec.all_()
-
-        return self._remote_objects
-    remote_objects = property(_get_remote_objects)
-
-    def _get_local_objects(self):
-        if self._local_objects is None:
-            self._local_objects = self.local_spec.all_()
-        return self._remote_objects
-    local_objects = property(_get_local_objects)
-
-
-
-    intersection
-
-    local_create = 
-    local_update = 
-    local_delete = 
-    remote_delete =
-    remote
-
-    def intersection(
-
-    def locals_not_in_remote(no_errors=True, deleted_at=None):
-        objs = list(self.local_store.all_())
-        if no_errors:
-            for i in xrange(len(objs),0,-1):
-                if objs[i].get('_errors',{}).get(self.rs,[]):
-                    objs.pop(i)
-
-        if deleted_at:
-            for i in xrange(len(objs),0,-1):
-                if objs[i].get('_errors',{}).get
-
-
-        for local_obj in self.local_store.all_():
-
-
-            if not obj.get('_errors',{}).get(self.rs,[]): # no errors associated to this remote store
-                if not obj.get('deleted_at'): # and not deleted
-
-
-            (rs):
-
-            key_value = self.rs.key_value(local_obj)
-            if not key_value or key_value not in self.rs.key_values:
-
-                if not self.connection.get_remote_expectation(local_obj):
-
-    def remotes_not_in_locals(deleted_at=None):
-
-        for local_obj in self.local_store.all_(deleted_at
-
+    def is_writeably_different(self, obj):
+        return any((for attr in 
 

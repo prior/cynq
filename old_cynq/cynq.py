@@ -1,12 +1,16 @@
 import logging_helper
 from sanetime import sanetime
 from junction import Junction
-from store import LocalStore, RemoteStore
-from phase import LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate, LimitedLocalUpdate
 
+PHASES = [ 
+    'local_create', 
+    'local_update', 
+    'local_delete', 
+    'remote_delete', 
+    'remote_update', 
+    'remote_create', 
+    'limited_local_update' ]
 
-
-PHASES = [ LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate, LimitedLocalUpdate ]
 
 class Cynq(object):
     def __init__(self, local_spec, remote_specs):
@@ -43,11 +47,21 @@ class Cynq(object):
 
     def cynq(self):
         cynq_started_at = sanetime()
-        junctions = self.build_junctions(self._pre_cynq(cynq_started_at))
-        for phase_kls in PHASES:
-            for j in junctions:
-                phase_kls(j).execute(cynq_started_at)
-        self.local_store.persist_changes(cynq_started_at)
+        junctions = self.build_junctions(self.pre_cynq(cynq_started_at))
+
+        phases = []
+        for phase_id in PHASES:
+            # clean out bad junctions
+            for i in xrange(len(junctions),0,-1):
+                if not junctions[i-1].active:
+                    junctions.pop(i)
+            if not junctions: break
+            phase = Phase(phase_id, junctions)
+            phases.append(phase)
+            phase.execute(cynq_started_at)
+
+        self.local_store.persist(cynq_started_at)
+
         self._post_cynq(junctions, cynq_started_at)
         self._report(junctions)
 
