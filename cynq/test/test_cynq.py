@@ -11,6 +11,15 @@ class BadStore(Base):
     def pre_cynq(): return False
 
 
+class TestPhase(JunctionPhase):
+    phase_type
+    def __init__(self, junction):
+        super(Test, self).__init__(junction, 'remote_create')
+
+    def
+    pass
+
+
 class CynqTest(unittest2.TestCase):
     def setUp(self):
         remote_store = 
@@ -24,6 +33,9 @@ class CynqTest(unittest2.TestCase):
         pass
 
     def test_bad_local_cynq(self):
+
+    def test_
+
 
 
         self.assertNoAction(Cynq(BadStore(), (GoodStore(), GoodStore())))

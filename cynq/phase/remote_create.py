@@ -1,41 +1,12 @@
-import logging_helper
+from cynq.phase.junction_phase import JunctionPhase
 
 
-class JunctionPhase(object):
-    def __init__(self, junction, phase_type):
-        super(Phase, self).__init__()
-        self.junction = junction
-        self.ls = junction.local_store
-        self.rs = junction.remote_store
-        self.phase_type = phase_type
-        self.log = logging_helper.get_log('cynq.%s.%s' % phase_type)
+#_TODO: deal with possibility of soft or hard deletes in local store-- could make it work with last_updated_syncable_attribute on every junction
 
-    def _pre_phase_hooks(self, cynq_started_at):
-        if not self.ls.spec.pre_cynq_phase(self.phase_type, self.junction.id_, cynq_started_at): return False
-        if not self.rs.spec.pre_cynq_phase(self.phase_type, cynq_started_at): return False
-        return True
-        
-    def _post_phase_hooks(self, cynq_started_at):
-        self.ls.spec.post_cynq_phase(self.phase_type, self.junction.id_, cynq_started_at)
-        self.rs.spec.post_cynq_phase(self.phase_type, cynq_started_at)
-
-    def execute(self, cynq_started_at):
-        if not self.junction.active: return False
-        if not self._pre_phase_hooks(cynq_started_at): return False
-        try:
-            self._execute()
-        except StandardError as err:
-            self.log.error(err)
-            self.junction.deactivate()
-        self._post_phase_hooks(cynq_started_at)
-
-    def _execute(self, cynq_started_at):
-        raise NotImplementedError()
-
+#local(remote_id_junction_updated_at)
 
 class RemoteCreate(JunctionPhase):
-    def __init__(self, junction):
-        super(RemoteCreate, self).__init__(junction, 'remote_create')
+    phase_name = 'remote_create'
 
     def _execute(self, cynq_started_at):
         if not self.rs.spec.createable: return False

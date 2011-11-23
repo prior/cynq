@@ -5,7 +5,6 @@ from store import LocalStore, RemoteStore
 from phase import LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate, LimitedLocalUpdate
 
 
-
 PHASES = [ LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate, LimitedLocalUpdate ]
 
 class Cynq(object):
@@ -14,6 +13,7 @@ class Cynq(object):
         self.log = logging_helper.get_log('cynq')
         self.local_store = LocalStore(local_spec)
         self.remote_stores = [RemoteStore(rs) for rs in remote_specs]
+        self.phases = list(PHASES)
 
     def _build_junctions(self, remote_stores):
         junctions = []
@@ -44,18 +44,18 @@ class Cynq(object):
     def cynq(self):
         cynq_started_at = sanetime()
         junctions = self.build_junctions(self._pre_cynq(cynq_started_at))
-        for phase_kls in PHASES:
+        for phase_kls in self.phases:
             for j in junctions:
-                phase_kls(j).execute(cynq_started_at)
-        self.local_store.persist_changes(cynq_started_at)
+                if not j.fatal_failure:
+                    phase_kls(j).execute(cynq_started_at)
+        junctions = [j for j in junctions if not j.fatal_failure]
+        if junctions:
+            self.local_store.persist_changes(cynq_started_at)
         self._post_cynq(junctions, cynq_started_at)
         self._report(junctions)
 
     def _report(self, junctions):
         pass
-
-
-
 
         #self.log.debug("started cynq: %s(%s)" %(repr(sync_started_at), sync_started_at.us))
         #self._log_results()
@@ -64,8 +64,4 @@ class Cynq(object):
             #return self.local_store.after_sync_finish(self.total_changes > 0)
         #self.log.warn("cynq-ing never attempted cuz before_sync_start returned False")
         #return False
-
-
-
-
 

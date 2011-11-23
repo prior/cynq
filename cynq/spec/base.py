@@ -1,33 +1,19 @@
-class Base(object):
+import copy
+from error import StoreError
+
+class BaseSpec(object):
     def __init__(self):
-        super(Base, self).__init__()
+        super(BaseSpec, self).__init__()
     
-    # private methods
-    def _default_batch_change(self, change_type, objs):
+    # used by default batch implementation so that you can setup a single implementation instead of needing to do batch (though it's very recommended to do batch if you can)
+    def _batch_change_using_singles(self, change_type, objs):
         if not objs: raise ValueError()
+        objs = list(objs)
         obj = objs.pop(0)
         success = False
         try:
-            success = getattr(self, 'single_%s'%change_type)(obj)
-        except StandardError as err:
-            self.log.error(err)
+            success = getattr(self, '_single_%s'%change_type)(obj)
+        except StoreError:
+            pass
         return (success and [obj] or [], not success and [obj] or [], objs)
-
-    def wrapped_all(self, since=None):
-        try:
-            self._all(since=since)
-        except StandardError as err:
-            self.log.error(err)
-            raise ListingError(self, err)
-
-    def 
-
-    def wrapped_batch_update(self, change_type, objs):
-
-    def is_too_many_failures(attempt_count, failure_count):
-        if attempt_count <= 2: return False
-        return failure_count > int(failure_count/float(failure_count)**0.5+1)
-
-
-
 
