@@ -9,26 +9,21 @@ class RemoteCreate(JunctionPhase):
     phase_name = 'remote_create'
 
     def _execute(self, cynq_started_at):
-        if not self.rs.spec.createable: return False
+        if not self.rs.createable: return False
+        for local_obj in self.jn.valid_locals:
+            key_value = self.jn.key_value(local_obj)
+            if not key_value or key_value not in self.rs.hash_:
 
-        remote_creates = []
-        for obj in self.junction.ls.list_:
-            if not obj.get('_error') and not obj.get('_deleted_at'):
-                key_value = self.junction.key_value(obj)
-                if not key_value or key_value not in self.rs.hash_:
-                    remote_creates.append(self.rs.writeably_clone(obj))
-        self.rs.create(remote_creates, persist=True)
+                remote_obj = self.rs.copy(local_obj)
 
-    def _remote_create(self, obj): # purposefully no try/catch-- want it to bubble up
-        new_remote = self.rs.create(obj)
-        self.rs.merge(target=local, source=new_remote, from_remote=True)
-        self.conn.set_remote_expectation(local, True)
-        key_value = self.rs.key_value(local)
-        if not key_value: raise Exception("remote_create yielded no key value!")
-        self.log.debug(
-            "remote create... ( remote=%s, final_remote=%s, final_local=%s )" % (
-                self.rs,
-                self.rs.caring_dict(new_remote),
-                self.ls.caring_dict(local, self.remote.remote_expectation_attribute)))
-        return key_value
+                self.jn.local_update(local_obj, self.rs.create(local_obj))
+
+                self.jn.set_expected_remote()
+
+                local_obj.merge(self.rs.create(local_obj))
+
+                self.log.debug("remote create...(local=%s, remote(after)=%s)" % (local_obj, remote_obj))
+
+
+        self.rs.persist_changes()
 

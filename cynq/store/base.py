@@ -1,20 +1,21 @@
-from error import StoreError
-import logging_helper
+from cynq.error import StoreError
+import cynq.logging_helper
 
-#_TODO: figure out implications of an update of a key attribute-- should we be disallowing such an action
+#TODO: test cached levels
 
 class BaseStore(object):
     def __init__(self, spec):
         super(BaseStore, self).__init__()
         self.spec = spec
         self._list = None
+        self._hashes = {}
         self._queued = {'creates':[], 'updates':[], 'deletes':[]}
         self.log = logging_helper.get_log('cynq.store.%'%self.spec.id_)
 
     def _force_get_list(self):
         return self.spec.all_()
 
-    def _get_list(self, supplement=None):
+    def _get_list(self):
         if self._list is None:
             self._list = self.self._force_get_list()
         return self._list
@@ -23,25 +24,65 @@ class BaseStore(object):
     def _force_build_hash(self, key_attr):
         return dict((o[key_attr],o) for o in self.list_ if o.get(key_attr) is not None)
 
+    def get_hash(self, key_attr):
+        if self._hashes.get(key_attr) is None:
+            self._hashes[key_attr] = self._force_build_hash(key_attr)
+        return self._hashes[key_attr]
+
+
     # playing with objects in that exist in the _list
-    def create(self, objs, persist=False): return self.change(objs, 'create', persist)
-    def update(self, objs, persist=False): return self.change(objs, 'update', persist)
-    def delete(self, objs, persist=False): return self.change(objs, 'delete', persist)
-    def change(self, objs, change_type, persist=False):
-        self._queued['%ss'%change_type].append(objs)
-        getattr(self,'_%sd'%change_type)(objs)
-        if persist: self.persist_changes()
+    def create(self, obj): return self.change(obj, 'create')
+    def update(self, obj): return self.change(obj, 'update')
+    def delete(self, obj): return self.change(obj, 'delete')
+    def change(self, obj, change_type):
+        self._queued['%ss'%change_type].append(obj)
+        getattr(self,'_%sd'%change_type)(obj)
 
     def persist_changes(self):
         for change_type in ['create','update','delete']:
             queue = self._queued['%ss'%change_type]
             if queue:
-                getattr(self.spec,'_batch_%s'%change_type)(queue)
+                getattr(self.spec,'batch_%s'%change_type)(queue)
+                queue.clear()
 
-    def _created(self, objs): self.list_.extend(objs)
-    def _updated(self, objs): pass
-    def _deleted(self, objs): [self.list_.remove(o) for o in objs]
+    def _created(self, objs):
+        self.list_.extend(objs)
+        for key in self._hashes:
+            for obj in objs:
+                hash_ = self._hashes[key]
+                key_value = obj.get(key)
+                if key_value is not None:
+                    if key_value in hash_: raise Error("key already exists!")  #_TODO: embellish
+                    if obj in hash_.values(): raise Error("obj already in hash!")  #_TODO: embellish
+                    hash_[key_value] = obj
 
+#_TODO: figure out implications of an update of a key attribute-- should we be disallowing such an action
+    def _updated(self, objs):
+        for key in self._hashes:
+            for obj in objs:
+                hash_ = self._hashes[key]
+                key_value = obj.get(key)
+                if key_value is None:
+                    if obj in hash_.values():
+                        fishing_key = None
+                        for (k,v) in hash_.iteritems():
+                            if v==obj: fishing_key = k; break
+                        del hash_[fishing_key]
+                else:
+                    if key_value in hash_ and hash_[key_value] != obj: 
+                        raise Error("object already exists for that key and it's not this one!")  #_TODO: embellish
+                    if obj not in hash_.values():
+                        hash_[key_value] = obj
+
+    def _deleted(self, objs): 
+        [self.list_.remove(o) for o in objs]
+        for key in self._hashes:
+            for obj in objs:
+                hash_ = self._hashes[key]
+                key_value = obj.get(key)
+                if key_value is not None:
+                    if obj not in hash_.values(): raise Error("obj should be in the hash!")  #_TODO: embellish
+                    del hash_[key_value]
 
 
     #proxy spec functions with proper exception handling

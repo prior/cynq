@@ -1,7 +1,8 @@
-class LocalSpec(Base):
-    def __init__(self, remote_specs):
-        DESIGNATIONS = ('createable','updateable','deleteable')
-        super(LocalSpec, self).__init__(DESIGNATIONS)
+from cynq.base import BaseSpec
+
+class LocalSpec(BaseSpec):
+    def __init__(self):
+        super(LocalSpec, self).__init__()
 
     # overrideable specs
     createable = True
@@ -29,13 +30,3 @@ class LocalSpec(Base):
     def post_cynq_phase(self, phase, remote_id, cynq_started_at): return True
 
     
-    # implied attributes = 
-    remote_id_expectation
-    remote_id_syncable_updated_at
-    all of the attributes from all the remotes
-
-
-    #
-    def cynq(self):
-        pass
-

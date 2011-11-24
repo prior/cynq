@@ -1,4 +1,4 @@
-import logging_helper
+from cynq import logging_helper
 
 
 class JunctionPhase(object):

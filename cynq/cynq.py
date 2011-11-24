@@ -1,11 +1,16 @@
 import logging_helper
 from sanetime import sanetime
 from junction import Junction
-from store import LocalStore, RemoteStore
-from phase import LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate, LimitedLocalUpdate
+from store.local import LocalStore
+from store.remote import RemoteStore
+from phase.local_create import LocalCreate
+from phase.local_update import LocalUpdate
+from phase.local_delete import LocalDelete
+from phase.remote_create import RemoteCreate
+from phase.remote_update import RemoteUpdate
+from phase.remote_delete import RemoteDelete
 
-
-PHASES = [ LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate, LimitedLocalUpdate ]
+PHASES = [ LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate ]
 
 class Cynq(object):
     def __init__(self, local_spec, remote_specs):
