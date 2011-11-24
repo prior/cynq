@@ -1,8 +1,4 @@
-import copy
-import logging_helper
-from error import StoreError
-from cynq.store.base import BaseSpec
-
+from cynq.spec.base import BaseSpec
 
 #important! do not expect these to change during execution!  need to get that in the docs (if you do change them those changes likey won't be honored)
  
@@ -10,7 +6,7 @@ from cynq.store.base import BaseSpec
 class RemoteSpec(BaseSpec):
 
     # overrideable specs
-    id_ = None
+    name = None
     createable = True
     updateable = True
     deleteable = True
@@ -31,7 +27,7 @@ class RemoteSpec(BaseSpec):
     def single_update(self, obj): raise NotImplementedError()
     def single_delete(self, obj): raise NotImplementedError()
 
-    # batch methods must return tuple of (successes, failures, untried)
+    # batch methods must return tuple of (successes, failures, untried) -- only override if you have legit batch methods, otherwise use single*
     def batch_create(self, objs): return self.default_batch_change('create', objs)
     def batch_update(self, objs): return self.default_batch_change('update', objs)
     def batch_delete(self, objs): return self.default_batch_change('delete', objs)
@@ -43,7 +39,7 @@ class RemoteSpec(BaseSpec):
     def post_cynq_phase(self, phase, cynq_started_at): return True
 
 
-    def __init__(self):
-        DESIGNATIONS = ('id_','pushed','pulled','shared','key','since','createable','updateable','deleteable','sinceable')
-        super(RemoteSpec, self).__init__(DESIGNATIONS)
-
+    # private methods
+    @classmethod
+    def _deduce_all_attrs(kls):
+        return kls.pushed + kls.pulled + kls.shared

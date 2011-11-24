@@ -1,8 +1,7 @@
-import copy
-from error import StoreError
+from cynq.error import StoreError
 
 class BaseSpec(object):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super(BaseSpec, self).__init__()
     
     # used by default batch implementation so that you can setup a single implementation instead of needing to do batch (though it's very recommended to do batch if you can)
