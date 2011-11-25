@@ -42,8 +42,8 @@ class LocalSpec(BaseSpec):
     @classmethod
     def _deduce_all_attrs(kls, remote_spec_classes):
         attrs = [kls.soft_delete] + list(kls.extras)
-        for kls in remote_spec_classes:
-            attrs.extend(list(kls._deduce_all_attrs()))
-            attrs.append(kls.expected_format % {'name': kls.name})
-            attrs.append(kls.updated_at_format % {'name': kls.name})
+        for remote_kls in remote_spec_classes:
+            attrs.extend(list(remote_kls._deduce_all_attrs()))
+            attrs.append(kls.expected_format % {'name': remote_kls.name})
+            attrs.append(kls.updated_at_format % {'name': remote_kls.name})
         return tuple(set(attrs))

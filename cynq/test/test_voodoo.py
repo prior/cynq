@@ -56,7 +56,8 @@ class TestCase(unittest2.TestCase):
         expected_obj = deepcopy(obj)
         spec.single_update(obj)
         self.assertEquals({'pre':(0,0,1,0),'post':(0,0,1,0)},spec.api.stats)
-        self.assertEquals(len(expected_list), len(spec.all_()))
+        self.assert_not_equal_object_lists(expected_list, spec.all_())
+        self.assert_equal_object_lists(expected_list, spec.all_(), remove_attrs=['share','push'])
         self.assertEquals(expected_obj, spec.api.pre_update[0])
         self.assertNotEquals(expected_obj, spec.api.post_update[0])
         del expected_obj['push']
@@ -78,7 +79,6 @@ class TestCase(unittest2.TestCase):
     def test_localish_api_hookup_on_read_accounting(self):
         spec = TestVoodooLocalSpec(VoodooMemoryApi(), [TestVoodooRemoteSpec])
         expected = deepcopy(spec.api.seed(3))
-        print expected
         self.assertEquals({'pre':(0,0,0,0),'post':(0,0,0,0)},spec.api.stats)
         self.assert_equal_object_lists(expected, spec.all_())
         self.assertEquals({'pre':(1,0,0,0),'post':(1,0,0,0)},spec.api.stats)
@@ -86,23 +86,75 @@ class TestCase(unittest2.TestCase):
         self.assertEquals({'pre':(2,0,0,0),'post':(2,0,0,0)},spec.api.stats)
 
     def test_pre_failures(self):
-        seeds = self._build_seeds(TestVoodooRemoteSpec,4)
-        api = VoodooMemoryApi(seeds = deepcopy(seeds))
-        spec = TestVoodooRemoteSpec(api)
-        self.assertEquals({'pre':(0,0,0,0),'post':(0,0,0,0)},api.stats)
+        spec = TestVoodooRemoteSpec(VoodooMemoryApi(pre_fail_lambda = (lambda obj,op: op!='read')))
+        seeded_list = deepcopy(spec.api.seed(4))
+        self.assert_equal_object_lists(seeded_list, spec.all_())
 
+        create_obj = deepcopy(spec.api.build_seed())
+        self.assertRaises(StandardError, spec.single_create, *[create_obj])
+        self.assertEquals({'pre':(1,1,0,0),'post':(1,0,0,0)},spec.api.stats)
+        self.assert_equal_object_lists(seeded_list, spec.all_())
 
+        update_obj = deepcopy(seeded_list[0])
+        update_obj['share'] = str(uuid.uuid4())[:4]
+        self.assertRaises(StandardError, spec.single_update, *[update_obj])
+        self.assertEquals({'pre':(2,1,1,0),'post':(2,0,0,0)},spec.api.stats)
+        self.assert_equal_object_lists(seeded_list, spec.all_())
 
+        delete_obj = deepcopy(seeded_list[1])
+        self.assertRaises(StandardError, spec.single_delete, *[delete_obj])
+        self.assertEquals({'pre':(3,1,1,1),'post':(3,0,0,0)},spec.api.stats)
+        self.assert_equal_object_lists(seeded_list, spec.all_())
 
-    def _build_seeds(self, attrs, count):
-        return [self._build_seed(attrs) for i in xrange(count)]
+    def test_post_failures(self):
+        spec = TestVoodooRemoteSpec(VoodooMemoryApi(post_fail_lambda = (lambda obj,op: op!='read')))
+        seeded_list = deepcopy(spec.api.seed(1))
+        self.assert_equal_object_lists(seeded_list, spec.all_())
 
-    def _build_seed(self, attrs):
-        return dict((attr,str(uuid.uuid4())[:4]) for attr in attrs)
+        create_obj = spec.api.build_seed()
+        self.assertRaises(StandardError, spec.single_create, *[create_obj])
+        new_list = deepcopy(seeded_list + [create_obj])
+        self.assertEquals({'pre':(1,1,0,0),'post':(1,0,0,0)},spec.api.stats)
+        self.assert_not_equal_object_lists(new_list, spec.all_())
+        self.assert_equal_object_lists(new_list, spec.all_(), remove_attrs=['push'])
+        seeded_list = spec.all_()
 
-    def assert_equal_object_lists(self, list1, list2):
-        tuple1 = tuple(sorted(tuple(sorted(o.iteritems())) for o in list1))
-        tuple2 = tuple(sorted(tuple(sorted(o.iteritems())) for o in list2))
-        self.assertEquals(tuple1,tuple2)
+        update_obj = deepcopy(seeded_list[0])
+        update_obj['share'] = str(uuid.uuid4())[:4]
+        new_list = deepcopy([update_obj] + seeded_list[1:])
+        self.assertRaises(StandardError, spec.single_update, *[update_obj])
+        self.assertEquals({'pre':(4,1,1,0),'post':(4,0,0,0)},spec.api.stats)
+        self.assert_not_equal_object_lists(new_list, spec.all_())
+        self.assert_equal_object_lists(new_list, spec.all_(), remove_attrs=['push'])
+        seeded_list = spec.all_()
+
+        delete_obj = deepcopy(seeded_list[1])
+        new_list = deepcopy(seeded_list[0:1] + seeded_list[2:])
+        self.assertRaises(StandardError, spec.single_delete, *[delete_obj])
+        self.assertEquals({'pre':(7,1,1,1),'post':(7,0,0,0)},spec.api.stats)
+        self.assert_equal_object_lists(new_list, spec.all_())
+
+    def assert_equal_object_lists(self, list1, list2, remove_attrs=None):
+        if remove_attrs:
+            list1 = self.remove_attrs_in_list(deepcopy(list1), remove_attrs)
+            list2 = self.remove_attrs_in_list(deepcopy(list2), remove_attrs)
+        t1,t2 = self._to_tuples(list1,list2)
+        self.assertEquals(t1,t2)
+
+    def assert_not_equal_object_lists(self, list1, list2):
+        t1,t2 = self._to_tuples(list1,list2)
+        self.assertNotEquals(t1,t2)
+
+    def remove_attrs_in_list(self, list_, attrs):
+        for o in list_:
+            for a in attrs:
+                if o.has_key(a): 
+                    del o[a]
+        return list_
+        
+    def _to_tuples(self, l1, l2):
+        t1 = tuple(sorted(tuple(sorted(o.iteritems())) for o in l1))
+        t2 = tuple(sorted(tuple(sorted(o.iteritems())) for o in l2))
+        return (t1,t2)
 
 
