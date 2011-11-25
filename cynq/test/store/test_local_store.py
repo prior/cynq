@@ -25,6 +25,10 @@ class TestCase(unittest2.TestCase):
 
     def tearDown(self):
         pass
+    
+    def test_hashing(self):
+
+
 
     def test_normal_remote_create(self):
         remote_seeds = []

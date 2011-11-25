@@ -28,9 +28,9 @@ class RemoteSpec(BaseSpec):
     def single_delete(self, obj): raise NotImplementedError()
 
     # batch methods must return tuple of (successes, failures, untried) -- only override if you have legit batch methods, otherwise use single*
-    def batch_create(self, objs): return self.default_batch_change('create', objs)
-    def batch_update(self, objs): return self.default_batch_change('update', objs)
-    def batch_delete(self, objs): return self.default_batch_change('delete', objs)
+    def batch_create(self, objs): raise NotImplementedError()
+    def batch_update(self, objs): raise NotImplementedError()
+    def batch_delete(self, objs): raise NotImplementedError()
 
     # pre/post cynq hooks
     def pre_cynq(self, cynq_started_at): return True

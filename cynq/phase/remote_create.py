@@ -10,20 +10,16 @@ class RemoteCreate(JunctionPhase):
 
     def _execute(self, cynq_started_at):
         if not self.rs.createable: return False
-        for local_obj in self.jn.valid_locals:
-            key_value = self.jn.key_value(local_obj)
-            if not key_value or key_value not in self.rs.hash_:
-
-                remote_obj = self.rs.copy(local_obj)
-
-                self.jn.local_update(local_obj, self.rs.create(local_obj))
-
-                self.jn.set_expected_remote()
-
-                local_obj.merge(self.rs.create(local_obj))
-
-                self.log.debug("remote create...(local=%s, remote(after)=%s)" % (local_obj, remote_obj))
-
-
+        pairings = []
+        for lobj in self.jn.unexpected_valid_living_locals:
+            key_value = self.jn.key_value(lobj)
+            if key_value is None or key_value not in self.rs.hash_:
+                robj = self.jn.remote_pullable_clone(lobj)
+                pairings.append((lobj,robj))
+                self.log.debug("remote create...(local=%s, remote(before)=%s)" % (lobj, robj))
         self.rs.persist_changes()
+        for lobj,robj in pairings:
+            self.jn.remote_pushable_merge(robj, lobj)
+            self.log.debug("remote create...(local=%s, remote(after)=%s)" % (lobj, robj))
+
 

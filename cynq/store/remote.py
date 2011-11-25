@@ -1,12 +1,12 @@
-from cynq.store.base import BaseStore
+from cynq.store import BaseStore
 
-FIELD_PROXIES = ['id_', 'createable', 'updateable', 'deleteable', 'pushed', 'pulled', 'shared', 'key', 'since']
+FIELD_PROXIES = ('name', 'createable', 'updateable', 'deleteable', 'pushed', 'pulled', 'shared', 'key', 'since')
 
 class RemoteStore(BaseStore):
     def __init__(self, remote_spec):
-        super(RemoteStore,self).__init__(self, remote_spec)  #_TODO: ensure that spec passed is a remote spec
+        super(RemoteStore,self).__init__(remote_spec)  #_TODO: ensure that spec passed is a remote spec
         self._build_spec_proxies()
-        self._hash = None
+        self.clear_caches()
 
     def _force_get_list(self):
         if not self.since:
@@ -21,13 +21,13 @@ class RemoteStore(BaseStore):
             setattr(self, field, getattr(self.spec, field))
 
     def pushable_clone(self, obj):
-        return self._copy(obj, self.pushed + self.shared)
+        return self._clone(obj, self.pushables)
 
     def pullable_clone(self, obj):
-        return self._copy(obj, self.pulled + self.shared)
+        return self._clone(obj, self.pullables)
 
     def scoped_clone(self, obj):
-        return self._clone(obj, self.pushed + self.pulled + self.shared)
+        return self._clone(obj, self.careables)
 
     def _clone(self, obj, attrs):
         return dict((a, obj.get(a)) for a in attrs)
@@ -35,18 +35,27 @@ class RemoteStore(BaseStore):
     def bulk_scoped_clone(self, objs):
         return (self.scoped_clone(o) for o in objs)
 
+    def pushable_merge(self, source, target):
+        for attr in self.pushables:
+            target[attr] = source.get(attr)
 
-    #def writeablely_clone(self, obj):
-        #return dict((attr, obj.get(attr)) for attr in (self.writeables))
+    def pullable_merge(self, source, target):
+        for attr in self.pullables:
+            target[attr] = source.get(attr)
 
-    #def is_writeably_different(self, obj):
-        #return any((for attr in 
-
-    #def _get_writeables(self):
-        #return self.shared + self.pulled
-    #writeables = property(_get_writeables)
 
     def _get_hash(self):
         return self.get_hash(self.key)
     hash_ = property(_get_hash)
 
+    def _get_pushables(self):
+        return self.pushed + self.shared
+    pushables = property(_get_pushables)
+
+    def _get_pullables(self):
+        return self.pulled + self.shared
+    pullables = property(_get_pullables)
+
+    def _get_careables(self):
+        return self.pushed + self.pulled + self.shared
+    careables = property(_get_careables)
