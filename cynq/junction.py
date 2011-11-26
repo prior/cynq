@@ -23,6 +23,42 @@ class Junction(object):
         #return (o for o in self.ls.list_ if not o.get('_deleted_at') and not o.get('_error') and o.get(self.key) not in self.ls_hash_)
     #extra_undeleted_locals = property(_get_extra_undeleted_locals)
 
+    def local_create(self, remote_obj):
+        local_obj = self.local_pullable_clone(remote_obj)
+        self.ls.create(local_obj)
+        return local_obj
+
+    def local_update(self, local_obj, remote_obj):
+        if self.remote_pushable_merge(remote_obj, local_obj):
+            self.update_updated_at(local_obj)
+            self.ls.update(local_obj)
+        return local_obj
+
+    def local_delete(self, local_obj, cynq_started_at):
+        local_obj[self.ls.spec.soft_delete] = cynq_started_at
+
+
+
+    def remote_create(self, local_obj):
+        remote_obj = self.remote_pullable_clone(local_obj)
+        remote_obj['_source'] = local_obj
+        self.rs.create(remote_obj)
+        return remote_obj
+
+    def remote_update(self, remote_obj, local_obj):
+        if self.remote_pullable_merge(local_obj, remote_obj):
+            remote_obj['_source'] = local_obj
+            self.rs.update(remote_obj)
+        return remote_obj
+
+    def remote_delete(self, remote_obj):
+        self.rs.delete(remote_obj)
+        return remote_obj
+
+
+
+
+
     def remote_pushable_clone(self, obj):
         return self.rs.pushable_clone(obj)
 

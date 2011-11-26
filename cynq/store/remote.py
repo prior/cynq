@@ -36,12 +36,20 @@ class RemoteStore(BaseStore):
         return (self.scoped_clone(o) for o in objs)
 
     def pushable_merge(self, source, target):
+        changed = False
         for attr in self.pushables:
-            target[attr] = source.get(attr)
+            if target.get(attr) != source.get(attr):
+                target[attr] = source.get(attr)
+                changed = True
+        return changed
 
     def pullable_merge(self, source, target):
+        changed = False
         for attr in self.pullables:
-            target[attr] = source.get(attr)
+            if target.get(attr) != source.get(attr):
+                target[attr] = source.get(attr)
+                changed = True
+        return changed
 
 
     def _get_hash(self):

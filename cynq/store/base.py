@@ -40,13 +40,9 @@ class BaseStore(object):
         self._list = None
 
     # playing with objects in that exist in the _list
-    def create(self, obj): 
-        new_obj = self.pushably_filtered
-        self._queued_creates.append(pushably_obj)
-        getattr(self,'_%sd'%change_type)(obj)
-        return self.change(obj, 'create')
-    def update(self, key, delta): return self.change(obj, 'update')
-    def delete(self, key): return self.change(obj, 'delete')
+    def create(self, obj): return self.change(obj, 'create')
+    def update(self, obj): return self.change(obj, 'update')
+    def delete(self, obj): return self.change(obj, 'delete')
     def change(self, obj, change_type):
         self._queued['%ss'%change_type].append(obj)
         getattr(self,'_%sd'%change_type)(obj)

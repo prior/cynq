@@ -10,7 +10,6 @@ class RemoteCreate(JunctionPhase):
 
     def _execute(self, cynq_started_at):
         if not self.rs.createable: return False
-        pairings = []
         for lobj in self.jn.unexpected_valid_living_locals:
             key_value = self.jn.key_value(lobj)
             if key_value is None or key_value not in self.rs.hash_:
