@@ -1,11 +1,11 @@
 from cynq.store import BaseStore
 
-FIELD_PROXIES = ('name', 'createable', 'updateable', 'deleteable', 'pushed', 'pulled', 'shared', 'key', 'since')
 
 class RemoteStore(BaseStore):
+    SPEC_FIELD_PROXIES = ('name', 'createable', 'updateable', 'deleteable', 'pushed', 'pulled', 'shared', 'key', 'since')
+
     def __init__(self, remote_spec):
         super(RemoteStore,self).__init__(remote_spec)  #_TODO: ensure that spec passed is a remote spec
-        self._build_spec_proxies()
         self.clear_caches()
 
     def _force_get_list(self):
@@ -16,10 +16,6 @@ class RemoteStore(BaseStore):
         lt_since = [o for o in locals_ if o.get(self.since) and o[self.since] < since_cutoff]
         return self.bulk_copy(lt_since) + self.all_(since=since_cutoff)
 
-    def _build_spec_proxies(self):
-        for field in FIELD_PROXIES:
-            setattr(self, field, getattr(self.spec, field))
-
     def pushable_clone(self, obj):
         return self._clone(obj, self.pushables)
 
@@ -29,27 +25,31 @@ class RemoteStore(BaseStore):
     def scoped_clone(self, obj):
         return self._clone(obj, self.careables)
 
+    def scoped_diff(self, old, new):
+        return dict((a, (old.get(a), new.get(a))) for a in self.careables if old.get(a) != new.get(a))
+
     def _clone(self, obj, attrs):
         return dict((a, obj.get(a)) for a in attrs)
 
     def bulk_scoped_clone(self, objs):
-        return (self.scoped_clone(o) for o in objs)
+        return [self.scoped_clone(o) for o in objs]
 
-    def pushable_merge(self, source, target):
-        changed = False
+
+    def pushable_merge(self, target, source):
+        diff = {}
         for attr in self.pushables:
             if target.get(attr) != source.get(attr):
+                diff[attr] = (target.get(attr), source.get(attr))
                 target[attr] = source.get(attr)
-                changed = True
-        return changed
+        return diff
 
-    def pullable_merge(self, source, target):
-        changed = False
+    def pullable_merge(self, target, source):
+        diff = {}
         for attr in self.pullables:
             if target.get(attr) != source.get(attr):
+                diff[attr] = (target.get(attr), source.get(attr))
                 target[attr] = source.get(attr)
-                changed = True
-        return changed
+        return diff
 
 
     def _get_hash(self):

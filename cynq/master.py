@@ -1,18 +1,18 @@
 import logging_helper
 from sanetime import sanetime
-from cynq import Junction
+from cynq.junction import Junction
+from cynq.junction_phase import JunctionPhase
 from store import LocalStore, RemoteStore
-from phase import LocalCreate, LocalUpdate, LocalDelete, RemoteCreate, RemoteUpdate, RemoteDelete
 
-PHASES = [ LocalCreate, LocalUpdate, LocalDelete, RemoteDelete, RemoteUpdate, RemoteCreate ]
+PHASES = [ 'local_create', 'local_reanimate', 'local_update', 'local_delete', 'remote_delete', 'remote_update', 'remote_create', 'final_phase' ]
 
 class Cynq(object):
-    def __init__(self, local_spec, remote_specs):
+    def __init__(self, local_spec, remote_specs, phases=None):
         super(Cynq, self).__init__()
         self.log = logging_helper.get_log('cynq')
         self.local_store = LocalStore(local_spec)
         self.remote_stores = [RemoteStore(rs) for rs in remote_specs]
-        self.phases = list(PHASES)
+        self.phases = phases or list(PHASES)
 
     def _build_junctions(self, remote_stores):
         junctions = []
@@ -21,12 +21,12 @@ class Cynq(object):
         return junctions
 
     def _pre_cynq(self, cynq_started_at):
-        if not self.local_store.pre_cynq():
+        if not self.local_store.spec.pre_cynq(cynq_started_at):
             self.log.warn("pre-cynq hook on local store prevented cynq execution %s" % self.local_store)
             return False
         remote_stores_to_sync = []
         for rs in self.remote_stores:
-            if rs.pre_cynq():
+            if rs.spec.pre_cynq(cynq_started_at):
                 remote_stores_to_sync.append(rs)
             else:
                 self.log.warn("pre-cynq hook on remote store prevented it from being included in cynq (rs:%s)" % rs)
@@ -36,21 +36,22 @@ class Cynq(object):
         return remote_stores_to_sync
 
     def _post_cynq(self, junctions, cynq_started_at):
-        self.local_store.post_cynq(cynq_started_at)
+        self.local_store.spec.post_cynq(cynq_started_at)
         for j in junctions:
-            j.remote_store.post_cynq(cynq_started_at)
+            j.rs.spec.post_cynq(cynq_started_at)
 
     def cynq(self):
         cynq_started_at = sanetime()
-        junctions = self.build_junctions(self._pre_cynq(cynq_started_at))
-        for phase_kls in self.phases:
+        junctions = self._build_junctions(self._pre_cynq(cynq_started_at))
+        for phase_name in self.phases:
             for j in junctions:
                 if not j.fatal_failure:
-                    phase_kls(j).execute(cynq_started_at)
+                    JunctionPhase(j,phase_name).execute(cynq_started_at)
         junctions = [j for j in junctions if not j.fatal_failure]
         if junctions:
-            self.local_store.persist_changes(cynq_started_at)
+            self.local_store.persist_changes()
         self._post_cynq(junctions, cynq_started_at)
+        self.cynq_started_at = cynq_started_at
         self._report(junctions)
 
     def _report(self, junctions):

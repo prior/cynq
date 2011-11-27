@@ -6,6 +6,9 @@ class LocalSpec(BaseSpec):
     extras = ('id',)
     key = 'id'
 
+    synced_at = 'synced_at'
+    syncable_updated_at = 'syncable_updated_at'
+
     soft_delete = 'deleted_at'  # soft deletes are required but you can change what they're named -- keep the default unless you really have to change
 
     # overrideable specs
@@ -15,7 +18,6 @@ class LocalSpec(BaseSpec):
 
     # format for derived attributes from remotes
     expected_format = '%(name)s_expected'
-    updated_at_format = '%(name)s_updated_at'
 
 
     # overrideable methods
@@ -25,12 +27,10 @@ class LocalSpec(BaseSpec):
 
     def single_create(self, obj): raise NotImplementedError()
     def single_update(self, obj): raise NotImplementedError()
-    def single_delete(self, obj): raise NotImplementedError()
 
     # batch methods must return tuple of (successes, failures, untried) -- only override if you have legit batch methods, otherwise use single*
     def batch_create(self, objs): raise NotImplementedError()
     def batch_update(self, objs): raise NotImplementedError()
-    def batch_delete(self, objs): raise NotImplementedError()
 
     # pre/post cynq hooks
     def pre_cynq(self, cynq_started_at): return True
@@ -46,5 +46,7 @@ class LocalSpec(BaseSpec):
         for remote_kls in remote_spec_classes:
             attrs.extend(list(remote_kls._deduce_all_attrs()))
             attrs.append(kls.expected_format % {'name': remote_kls.name})
-            attrs.append(kls.updated_at_format % {'name': remote_kls.name})
+            attrs.append(kls.synced_at)
+            attrs.append(kls.syncable_updated_at)
+            attrs.append(kls.soft_delete)
         return tuple(set(attrs))

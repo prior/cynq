@@ -23,39 +23,78 @@ class Junction(object):
         #return (o for o in self.ls.list_ if not o.get('_deleted_at') and not o.get('_error') and o.get(self.key) not in self.ls_hash_)
     #extra_undeleted_locals = property(_get_extra_undeleted_locals)
 
-    def local_create(self, remote_obj):
-        local_obj = self.local_pullable_clone(remote_obj)
-        self.ls.create(local_obj)
-        return local_obj
+    def local_create(self, cynq_started_at):
+        for robj in self._get_remotes(valid=True, keyed=True, common=False):
+            lobj = self.local_pullable_clone(robj)
+            self.log.debug("local create... ( local=%s remote=%s )" % (lobj, robj))
+            self.ls.create(lobj)
 
-    def local_update(self, local_obj, remote_obj):
-        if self.remote_pushable_merge(remote_obj, local_obj):
-            self.update_updated_at(local_obj)
-            self.ls.update(local_obj)
-        return local_obj
+    def _local_update_obj(self, lobj, robj):
+        diff = self.remote_pushable_merge(lobj, robj)
+        if diff:
+            self.log.debug("local update... ( delta(old,new)=%s, local=%s )" % (diff, lobj))
+            self.ls.update(lobj)
 
-    def local_delete(self, local_obj, cynq_started_at):
-        local_obj[self.ls.spec.soft_delete] = cynq_started_at
+    def local_reanimate(self, cynq_started_at):
+        for lobj,robj in self._get_locals(valid=True, alive=False, expected=False, keyed=True, common=True, paired=True):
+            lobj[self.ls.spec.soft_delete] = None
+            self.log.debug("local reanimate... ( local=%s )" % lobj)
+            self._local_update_obj(lobj, robj)
 
+    def local_update(self, cynq_started_at):
+        for lobj,robj in self._get_locals(valid=True, alive=True, keyed=True, common=True, paired=True):
+            if not self.has_local_changes_since_last_sync(lobj):
+                self._local_update_obj(lobj, robj)
 
+    def local_delete(self, cynq_started_at):
+        for lobj in self._get_locals(valid=True, alive=True, expected=True, keyed=True, common=False):
+            lobj[self.ls.spec.soft_delete] = cynq_started_at
+            self.log.debug("local delete... ( local=%s )" % lobj)
 
-    def remote_create(self, local_obj):
-        remote_obj = self.remote_pullable_clone(local_obj)
-        remote_obj['_source'] = local_obj
-        self.rs.create(remote_obj)
-        return remote_obj
+    def remote_delete(self, cynq_started_at):
+        for lobj,robj in self._get_locals(valid=True, alive=False, expected=True, keyed=True, common=True, paired=True):
+            self.log.debug("remote delete... ( remote=%s, local=%s )" % (robj, lobj))
+            self.rs.delete(robj)
 
-    def remote_update(self, remote_obj, local_obj):
-        if self.remote_pullable_merge(local_obj, remote_obj):
-            remote_obj['_source'] = local_obj
-            self.rs.update(remote_obj)
-        return remote_obj
+    def _remote_create_obj(self, lobj):
+        robj = self.remote_pullable_clone(lobj)
+        self.log.debug("remote create...(remote=%s, local=%s)" % (robj, lobj))
+        robj['_source'] = lobj
+        self.rs.create(robj)
+        return robj
 
-    def remote_delete(self, remote_obj):
-        self.rs.delete(remote_obj)
-        return remote_obj
+    def remote_create(self, cynq_started_at):
+        for lobj in self._get_locals(valid=True, expected=False, alive=True, common=False):
+            self._remote_create_obj(lobj)
 
+    def _remote_update_obj(self, robj, lobj):
+        diff = self.remote_pullable_merge(robj, lobj)
+        if diff:
+            self.log.debug("remote update... ( delta(old,new)=%s, remote=%s)" % (diff, robj))
+            robj['_source'] = lobj
+            self.rs.update(robj)
+        return robj
 
+    def remote_update(self, cynq_started_at):
+        for lobj,robj in self._get_locals(valid=True, alive=True, keyed=True, common=True, paired=True):
+            self._remote_update_obj(robj, lobj)
+
+    def final_phase(self, cynq_started_at):
+        self.rs.persist_changes()
+
+        # pull over any updates that happened cuz of remote creates/updates
+        for robj in self._get_remotes(valid=True):
+            if robj.get('_source'):
+                self._local_update_obj(robj['_source'],robj)
+
+        # set expectations
+        for lobj,robj in self._get_locals(valid=True, keyed=True, common=True, paired=True):
+            self.ls.set_expected_remotely(self.name, lobj, True)
+        for lobj in self._get_locals(valid=True, common=False):
+            self.ls.set_expected_remotely(self.name, lobj, False)
+
+        # force new dates on updated/created stuff
+        self.ls.paint_pending_changes(cynq_started_at)
 
 
 
@@ -74,28 +113,72 @@ class Junction(object):
     def scoped_clone(self, obj):
         return self.rs.scoped_clone(obj)
 
-    def remote_pushable_merge(self, source, target):
-        return self.rs.pushable_merge(source, target)
+    def scoped_diff(self, obj):
+        return self.rs.scoped_diff(obj)
 
-    def remote_pullable_merge(self, source, target):
-        return self.rs.pullable_merge(source, target)
+    def remote_pushable_merge(self, target, source):
+        return self.rs.pushable_merge(target, source)
+
+    def remote_pullable_merge(self, target, source):
+        return self.rs.pullable_merge(target, source)
 
     def relevant_object_errors(self, obj):
         error_keys = set([self.ls.name,self.rs.name]) & set(obj.get('_error',{}))
         return [obj[k] for k in error_keys]
 
-    def _get_living_locals(self):
-        return (o for o in self.ls.list_ if not o.get(self.ls.soft_delete))
-    living_locals = property(_get_living_locals)
+    def is_local_expected_remotely(self, lobj):
+        return self.ls.is_expected_remotely(self.name, lobj)
 
-    def _get_valid_living_locals(self):
-        return (o for o in self.ls.list_ if not o.get(self.ls.soft_delete) and not self.relevant_object_errors(o))
-    valid_living_locals = property(_get_valid_living_locals)
+    def has_local_changes_since_last_sync(self, lobj):
+        synced_at = lobj.get(self.ls.spec.synced_at)
+        syncable_updated_at = lobj.get(self.ls.spec.syncable_updated_at)
+        return synced_at and syncable_updated_at and syncable_updated_at > synced_at
 
-    def _get_expected_valid_living_locals(self):
-        return (o for o in self.valid_living_locals if self.ls.is_expected_remotely(o, self.name))
-    expected_valid_living_locals = property(_get_expected_valid_living_locals)
+    def _get_locals(self, valid=None, alive=None, expected=None, keyed=None, common=None, paired=False):
+        arr = []
+        for o in self.ls.list_:
+            if valid is not None:
+                has_errors = self.relevant_object_errors(o)
+                if not(valid and not has_errors or not valid and has_errors): continue
+            if alive is not None:
+                dead = o.get(self.ls.soft_delete)
+                if not(alive and not dead or not alive and dead): continue
+            if expected is not None:
+                has_expectation = self.is_local_expected_remotely(o)
+                if not(expected and has_expectation or not expected and not has_expectation): continue
+            if keyed is not None:
+                key_value = o.get(self.key)
+                if not(keyed and key_value is not None or not keyed and key_value is None): continue
+            if common is not None:
+                intersects = o.get(self.key) in self.remote_hash
+                if not(common and intersects or not common and not intersects): continue
+            if paired:
+                arr.append((o,self.remote_hash.get(o.get(self.key))))
+            else:
+                arr.append(o)
+        return arr
 
-    def _get_unexpected_valid_living_locals(self):
-        return (o for o in self.valid_living_locals if not self.ls.is_expected_remotely(o, self.name))
-    unexpected_valid_living_locals = property(_get_unexpected_valid_living_locals)
+    def _get_remotes(self, valid=None, keyed=None, common=None):
+        arr = []
+        for o in self.rs.list_:
+            if valid is not None:
+                has_errors = self.relevant_object_errors(o)
+                if not(valid and not has_errors or not valid and has_errors): continue
+            if keyed is not None:
+                key_value = o.get(self.key)
+                if not(keyed and key_value is not None or not keyed and key_value is None): continue
+            if common is not None:
+                intersects = o.get(self.key) in self.local_hash
+                if not(common and intersects or not common and not intersects): continue
+            arr.append(o)
+        return arr
+
+
+    def _get_local_hash(self):
+        return self.ls.get_hash(self.key)
+    local_hash = property(_get_local_hash)
+
+    def _get_remote_hash(self):
+        return self.rs.hash_
+    remote_hash = property(_get_remote_hash)
+

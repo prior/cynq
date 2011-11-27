@@ -9,7 +9,7 @@ class VoodooMemoryApi(object):
         self.key = key
         self.attrs = attrs
         self.pushed = pushed
-        self.push_lambda = push_lambda or (lambda obj,attr,op: "%s%s"%(attr,id(obj)))
+        self.push_lambda = push_lambda or (lambda obj,attr,op: obj.get(attr) or "%s%s"%(attr,id(obj)))
         self.pre_fail_lambda = pre_fail_lambda or (lambda obj,op,tries: False)
         self.post_fail_lambda = post_fail_lambda or (lambda obj,op,tries: False)
         self.seeds = seeds or []
@@ -23,18 +23,18 @@ class VoodooMemoryApi(object):
         return self._hash
     hash_ = property(_get_hash)
 
-    def all_(self, since=None):
+    def all_(self):
         self._pre(read=True)
         self.tries['pre']['read'] +=1
         if self.pre_fail_lambda(None,'read',self.tries['pre']['read']): raise StandardError("forced to throw an error")
-        list_ = [copy(o) for o in self.hash_.values() if not since or self.since and o.get(self.since) and since>=o.get(self.since)]
+        list_ = [copy(o) for o in self.hash_.values()]
         self.tries['post']['read'] +=1
         if self.post_fail_lambda(None,'read',self.tries['post']['read']): raise StandardError("forced to throw an error")
         self._post(read=True)
         return list_
 
     def single_create(self, obj):
-        _obj = copy(obj)
+        _obj = self._copy_caring(obj)
         self._pre(create=_obj)
         self.tries['pre']['create'] +=1
         if self.pre_fail_lambda(_obj,'create',self.tries['pre']['create']): raise StandardError("forced to throw an error")
@@ -48,7 +48,7 @@ class VoodooMemoryApi(object):
         return obj
 
     def single_update(self, obj):
-        _obj = copy(obj)
+        _obj = self._copy_caring(obj)
         self._pre(update=_obj)
         self.tries['pre']['update'] +=1
         if self.pre_fail_lambda(_obj,'update',self.tries['pre']['update']): raise StandardError("forced to throw an error")
@@ -62,7 +62,7 @@ class VoodooMemoryApi(object):
         return obj
 
     def single_delete(self, obj):
-        _obj = copy(obj)
+        _obj = self._copy_caring(obj)
         self._pre(delete=_obj)
         self.tries['pre']['delete'] +=1
         if self.pre_fail_lambda(_obj,'delete',self.tries['pre']['delete']): raise StandardError("forced to throw an error")
@@ -70,6 +70,9 @@ class VoodooMemoryApi(object):
         self.tries['post']['delete'] +=1
         if self.post_fail_lambda(_obj,'delete',self.tries['post']['delete']): raise StandardError("forced to throw an error")
         self._post(delete=_obj)
+
+    def _copy_caring(self, obj):
+        return dict((a,obj.get(a)) for a in self.attrs)
 
     def _pre(self, read=None, create=None, update=None, delete=None):
         if read: self.pre_read_count += 1

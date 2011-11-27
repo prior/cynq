@@ -10,9 +10,16 @@ class BaseStore(object):
         super(BaseStore, self).__init__()
         self.spec = spec
         self.clear_caches()
-        self._queued = {'creates':[], 'updates':[], 'deletes':[]}
+        self.clear_change_queue()
+        self.clear_stats()
         self._build_spec_proxies()
         self.log = logging_helper.get_log('cynq.store.%s'%self.spec.name)
+
+    def clear_change_queue(self):
+        self._queued = {'creates':[], 'updates':[], 'deletes':[]}
+
+    def clear_stats(self):
+        self._stats = {'creates':{True:0,False:0}, 'updates':{True:0,False:0}, 'deletes':{True:0,False:0}}
 
     def _build_spec_proxies(self):
         for field in self.__class__.SPEC_FIELD_PROXIES:
@@ -47,16 +54,26 @@ class BaseStore(object):
         self._queued['%ss'%change_type].append(obj)
         getattr(self,'_%sd'%change_type)(obj)
         
+    def unique_object_list(self, lst):
+        x = dict((id(o),o) for o in lst).values()
+        return x
+    
 
     def persist_changes(self):
+        for change_type in ['create','update','delete']:
+            self._queued['%ss'%change_type] = self.unique_object_list(self._queued['%ss'%change_type])
+        for o in self._queued['creates']:
+            if o in self._queued['updates']: self._queued['updates'].remove(o)
+        if set(id(o) for o in self._queued['deletes']) & set(id(o) for o in self._queued['creates']): raise Error("shouldn't have creates and deletes on same backing store in same cynq")
         for change_type in ['create','update','delete']:
             queue = self._queued['%ss'%change_type]
             if queue:
                 (successes, errors, leftovers) = getattr(self,'batch_%s'%change_type)(queue)
                 if errors: # can't be sure if errors happened after or before changes, so gotta wipe caches and force relisting
                     self.clear_caches()
-                elif self._hashes.get(self.key):
+                elif self._hashes.get(self.key) is not None:
                     del self._hashes[self.key]
+        self.clear_change_queue()
 
     def _created(self, obj):
         self.list_.append(obj)
@@ -127,6 +144,9 @@ class BaseStore(object):
         results = ([],[],objs)
         while len(results[2]):
             results = batch_method(change_type, results[2])
+            self._stats['%ss'%change_type][True] += len(results[0])
+            self._stats['%ss'%change_type][False] += len(results[1])
+            for obj in results[0]: obj['_%sd'%change_type] = True
             for obj in results[1]: obj.setdefault('_error',{}).setdefault(self.spec.name,True)
             if self._is_too_many_failures(len(results[0]) + len(results[1]), len(results[1])):
                 raise StoreError("Too many failures during batch change (attemptes:%s failures:%s leftover:%s)"%results)
@@ -146,3 +166,4 @@ class BaseStore(object):
         except StoreError:
             pass
         return (success and [obj] or [], not success and [obj] or [], objs)
+
