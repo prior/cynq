@@ -26,7 +26,7 @@ class TestPulledKeyVoodooRemoteSpec(VoodooRemoteSpec):
     key = 'key'
 
 class TestVoodooLocalSpec(VoodooLocalSpec):
-    extras = ('id',)
+    extras = ('id','pull')
     key = 'id'
 
 
@@ -79,8 +79,27 @@ class TestCase(unittest2.TestCase):
         cq.cynq()
         started_at = cq.cynq_started_at
 
+#        self.assert_changes((('remote',1,0,0,0,0,0),(0,0,1,0,0,0)), cq)
+
         self.assertEquals({'creates':{True:1,False:0}, 'updates':{True:0,False:0}, 'deletes':{True:0,False:0}}, cq.remote_stores[0]._stats)
         self.assertEquals({'creates':{True:0,False:0}, 'updates':{True:1,False:0}, 'deletes':{True:0,False:0}}, cq.local_store._stats)
+
+        self.assert_equal_object_lists([{'key':5, 'pull':3, 'share':4}], rs.all_())
+        self.assert_equal_object_lists([{'key':5, 'pull':3, 'share':4, 'remote_expected':True, 'id':9, 'syncable_updated_at':started_at, 'synced_at':started_at, 'deleted_at':None}], ls.all_())
+
+        self.assert_no_changes_on_subsequent_cynqs(cq)
+
+    def test_basic_local_create(self):
+        remote_seeds = [{'share':4, 'key':5}]
+        local_seeds = []
+        rs = TestPushedKeyVoodooRemoteSpec(VoodooMemoryApi(seeds=remote_seeds, push_lambda=lambda obj,attr,op: 5 ))
+        ls = TestVoodooLocalSpec(VoodooMemoryApi(seeds=local_seeds, push_lambda=lambda obj,attr,op: attr=='id' and 9 or attr=='pull' and 3), [TestPushedKeyVoodooRemoteSpec])
+        cq = Cynq(ls, [rs])
+        cq.cynq()
+        started_at = cq.cynq_started_at
+
+        self.assertEquals({'creates':{True:0,False:0}, 'updates':{True:0,False:0}, 'deletes':{True:0,False:0}}, cq.remote_stores[0]._stats)
+        self.assertEquals({'creates':{True:1,False:0}, 'updates':{True:0,False:0}, 'deletes':{True:0,False:0}}, cq.local_store._stats)
 
         self.assert_equal_object_lists([{'key':5, 'pull':3, 'share':4}], rs.all_())
         self.assert_equal_object_lists([{'key':5, 'pull':3, 'share':4, 'remote_expected':True, 'id':9, 'syncable_updated_at':started_at, 'synced_at':started_at, 'deleted_at':None}], ls.all_())

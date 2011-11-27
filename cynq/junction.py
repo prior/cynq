@@ -105,10 +105,10 @@ class Junction(object):
         return self.rs.pullable_clone(obj)
 
     def local_pushable_clone(self, obj):
-        return self.remote_pullable_clone(self, obj)
+        return self.remote_pullable_clone(obj)
 
     def local_pullable_clone(self, obj):
-        return self.remote_pushable_clone(self, obj)
+        return self.remote_pushable_clone(obj)
 
     def scoped_clone(self, obj):
         return self.rs.scoped_clone(obj)
