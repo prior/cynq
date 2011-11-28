@@ -69,7 +69,7 @@ class ChangeSet(object):
         if set(self.creates) & set(self.updates) & set(self.deletes): raise Error("This should never happen!")
         return self
 
-    def _filter_(self, list_):
+    def mold(self, list_):
         leftovers = dict((id(o),self._scope(o)) for o in list_ if o.get(self.key) is None)
         hash_ = dict((o[self.key],self._scope(o)) for o in list_ if o.get(self.key) is not None)
         for k in set(self.deletes):
@@ -84,12 +84,20 @@ class ChangeSet(object):
         self.updates = dict((k,v) for k,v in self.updates.iteritems() if v)
         return self
 
-    def _apply(self, store):
-        creates = dict((o.get(self.key),o) for o in store.create(deepcopy(self.creates)))
+    def apply_(self, store):
+        rcreates = store.create(self.creates)[1]
+        rupdates = store.update(self.updates)[1]
+        rdeletes = store.delete(self.deletes)[1]
+        rorphans = ([],[])
+        if self.orphaned_creates:
+            rorphans = store.create(self.orphaned_creates)
+        return (rcreates[0]+rupdates[0]+rdeletes[0]+rorphans[0], rcreates[1]+rupdates[1]+rdeletes[1]+rorphans[1]) 
+
+    def remove_changed
+
+        
         updates = dict((o.get(self.key),o) for o in store.update(deepcopy(self.updates)))
         deletes = dict((o.get(self.key),o) for o in store.delete(deepcopy(self.deletes)))
-        if self.orphaned_creates:
-            creates.update(dict((o.get(self.key),o) for o in store.create(deepcopy(self.orphaned_creates))))
         return ChangeSet(self.attrs, self.key, creates, updates, deletes)
 
     def apply_subtracting_errors(self, store):
