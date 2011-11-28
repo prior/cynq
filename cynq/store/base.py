@@ -4,8 +4,6 @@ from traceback import format_exc
 
 
 class BaseStore(object):
-    orphanage = False
-
     # methods to override
     def all_(self, obj): return NotImplementedError()
     def create(self, objs): return self._default_batch_change('create',objs)
@@ -16,8 +14,19 @@ class BaseStore(object):
     def single_update(self, obj): raise NotImplementedError()
     def single_delete(self, obj): raise NotImplementedError()
 
-    def apply_changeset(self, changeset):
-        
+    # overrideable methods if you want
+    # pre/post cynq hooks
+    def pre_cynq(self, cynq_started_at): return True
+    def post_cynq(self, cynq_started_at): return True
+    def pre_cynq_phase(self, phase, cynq_started_at): return True
+    def post_cynq_phase(self, phase, cynq_started_at): return True
+
+    def createable(self, cynq_started_at): return True
+    def updateable(self, cynq_started_at): return True
+    def deleteable(self, cynq_started_at): return True
+
+
+
 
 
     # private methods

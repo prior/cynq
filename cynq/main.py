@@ -38,9 +38,6 @@ for rs in remote_stores:
     rs.merged_changeset = rs.merge
 
 
-        
-
-
 class Controller(object):
     def __init__(self, local_spec, remote_specs):
         super(Controller,self).__init__()

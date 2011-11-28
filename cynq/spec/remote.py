@@ -20,26 +20,15 @@ class RemoteSpec(BaseSpec):
     shared = ()  # list of items that can be written by both sides
     key = None  # the key attribute to use when comparing
 
-    # overrideable methods
-    # pre/post cynq hooks
-    def pre_cynq(self, cynq_started_at): return True
-    def post_cynq(self, cynq_started_at): return True
-    def pre_cynq_phase(self, phase, cynq_started_at): return True
-    def post_cynq_phase(self, phase, cynq_started_at): return True
-
-    def createable(self, cynq_started_at): return True
-    def updateable(self, cynq_started_at): return True
-    def deleteable(self, cynq_started_at): return True
-
-
     # private methods
     def __init__(self):
         super(RemoteSpec,self).__init__()
         for conf in ATTR_COMPONENTS:
-            setattr(self, conf, getattr(self.__class__, conf, ()))
+            setattr(self, conf, set(getattr(self.__class__, conf, ())))
         self.key = self.__class__.key
         self.attrs = set(attr for conf in ATTR_COMPONENTS for attrs in getattr(self, conf) for attr in attrs)
         self._assert_valid_spec()
+        self.key_remotely_generated = self.key in self.pushed
 
     def _assert_valid_spec(self):
         individual_sum = sum(len(getattr(self,conf)) for conf in ATTR_COMPONENTS)
