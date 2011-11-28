@@ -3,7 +3,7 @@ from copy import deepcopy
 class ChangeSet(object):
     def __init__(self, attrs, key, creates=None, updates=None, deletes=None, orphaned_creates=None):
         super(ChangeSet,self).__init__()
-        self.attrs = tuple(attrs)
+        self.attrs = set(attrs)
         self.key = key
         self.creates = creates or {}
         self.updates = updates or {}
@@ -11,7 +11,7 @@ class ChangeSet(object):
         self.orphaned_creates = orphaned_creates or {}
 
     def copy(self):
-        kwargs = {'attrs':self.attrs, 'key':self.key}
+        kwargs = {'attrs':set(self.attrs), 'key':self.key}
         for a in ('creates','updates','deletes','orphaned_creates'):
             kwargs[a] = deepcopy(getattr(self,a))
         return ChangeSet(**kwargs)

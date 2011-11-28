@@ -4,6 +4,8 @@ from traceback import format_exc
 
 
 class BaseStore(object):
+    orphanage = False
+
     # methods to override
     def all_(self, obj): return NotImplementedError()
     def create(self, objs): return self._default_batch_change('create',objs)
@@ -13,6 +15,10 @@ class BaseStore(object):
     def single_create(self, obj): raise NotImplementedError()
     def single_update(self, obj): raise NotImplementedError()
     def single_delete(self, obj): raise NotImplementedError()
+
+    def apply_changeset(self, changeset):
+        
+
 
     # private methods
     def __init__(self, key):
