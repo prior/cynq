@@ -2,19 +2,83 @@ from cynq.error import Error,StoreError
 from cynq import logging_helper
 from traceback import format_exc
 
-#TODO: test cached levels
 
 class BaseStore(object):
+    # methods to override
+    def all_(self, obj): return NotImplementedError()
+    def create(self, objs): return self._default_batch_change('create',objs)
+    def update(self, objs): return self._default_batch_change('update',objs)
+    def delete(self, objs): return self._default_batch_change('delete',objs)
+
+    def single_create(self, obj): raise NotImplementedError()
+    def single_update(self, obj): raise NotImplementedError()
+    def single_delete(self, obj): raise NotImplementedError()
+
+    # private methods
+    def __init__(self, key):
+        super(BaseStore, self).__init__()
+        self.key = key
+        self._clear_list_cache()
+        self.change_errors = 0
+        self.change_attempts = 0
+        self.log = logging_helper.get_log('cynq.store')
+
+    def _get_list(self):
+        if self._list is None:
+            self._list = self.spec.all_()
+        return self._list
+    list_ = property(_get_list)
+
+    def _clear_list_cache(self):
+        self._list = None
+
+    def _default_batch_change(self, change_type, objs):
+        successes = []
+        for obj in objs:
+            if self._is_too_many_failures():
+                raise StoreError("Too many failures during batch change (attemptes:%s failures:%s"%(attempts, errors))
+            self.change_attempts += 1
+            try: 
+                getattr(self,'single_%s'%change_type)(obj)
+                successes.append(obj)
+            except StandardError as err: 
+                self.change_errors +=1
+                self.log.error(format_exc(err))
+        return successes
+
+    def _is_too_many_failures(self):
+        if self.change_attempts <= 2: return False
+        return self.change_errors > int(self.change_attempts/float(self.change_attempts)**0.5+1)
+
+
+class MemoryStore(BaseStore):
+    def __init__(self, spec):
+        super(CacheStore, self).__init__()
+        self.spec = spec
+        self.clear_caches()
+        self.log = logging_helper.get_log('cynq.store')
+    
+    def create(self, create_hash):
+        create_hash.values
+
+    def single_create(self, create_obj):
+
+
+
     SPEC_FIELD_PROXIES = ('key',)
 
-    def __init__(self, spec):
-        super(BaseStore, self).__init__()
-        self.spec = spec
+
         self.clear_caches()
         self.clear_change_queue()
         self.clear_stats()
         self._build_spec_proxies()
         self.log = logging_helper.get_log('cynq.store.%s'%self.spec.name)
+
+
+
+    #def _force_get_list(self):
+        #return self.spec.all_()
+
 
     def clear_change_queue(self):
         self._queued = {'creates':[], 'updates':[], 'deletes':[]}
@@ -26,26 +90,7 @@ class BaseStore(object):
         for field in self.__class__.SPEC_FIELD_PROXIES:
             setattr(self, field, getattr(self.spec, field))
 
-    def _force_get_list(self):
-        return self.spec.all_()
 
-    def _get_list(self):
-        if self._list is None:
-            self._list = self._force_get_list()
-        return self._list
-    list_ = property(_get_list)
-
-    def _force_build_hash(self, key_attr):
-        return dict((o[key_attr],o) for o in self.list_ if o.get(key_attr) is not None)
-
-    def get_hash(self, key_attr):
-        if self._hashes.get(key_attr) is None:
-            self._hashes[key_attr] = self._force_build_hash(key_attr)
-        return self._hashes[key_attr]
-
-    def clear_caches(self):
-        self._hashes = {} 
-        self._list = None
 
     # playing with objects in that exist in the _list
     def create(self, obj): return self.change(obj, 'create')
