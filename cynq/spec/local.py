@@ -3,7 +3,7 @@ from cynq.spec.base import BaseSpec
 class LocalSpec(BaseSpec):
     name = 'local'
     # other attributes you care about that aren't sepcified in the atteached remotes, or implied by the remotes (expectation and updated_at attributes)
-    extras = ('id',)
+    pushed = ('id',)
     key = 'id'
 
     synced_at = 'synced_at'
@@ -42,7 +42,7 @@ class LocalSpec(BaseSpec):
     # private methods
     @classmethod
     def _deduce_all_attrs(kls, remote_spec_classes):
-        attrs = [kls.soft_delete] + list(kls.extras)
+        attrs = [kls.soft_delete] + list(kls.pushed)
         for remote_kls in remote_spec_classes:
             attrs.extend(list(remote_kls._deduce_all_attrs()))
             attrs.append(kls.expected_format % {'name': remote_kls.name})

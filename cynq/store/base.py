@@ -1,5 +1,6 @@
 from cynq.error import Error,StoreError
 from cynq import logging_helper
+from traceback import format_exc
 
 #TODO: test cached levels
 
@@ -65,6 +66,7 @@ class BaseStore(object):
         for o in self._queued['creates']:
             if o in self._queued['updates']: self._queued['updates'].remove(o)
         if set(id(o) for o in self._queued['deletes']) & set(id(o) for o in self._queued['creates']): raise Error("shouldn't have creates and deletes on same backing store in same cynq")
+        results = {}
         for change_type in ['create','update','delete']:
             queue = self._queued['%ss'%change_type]
             if queue:
@@ -73,7 +75,9 @@ class BaseStore(object):
                     self.clear_caches()
                 elif self._hashes.get(self.key) is not None:
                     del self._hashes[self.key]
+                results[change_type] = (successes, errors, leftovers)
         self.clear_change_queue()
+        return results
 
     def _created(self, obj):
         self.list_.append(obj)
@@ -127,8 +131,8 @@ class BaseStore(object):
             return getattr(self.spec, 'single_%s'%change_type)(obj)
         except StandardError as err: 
             obj.setdefault('_error', {})[self.spec.name] = err
-            self.log.error(err)
-            raise StoreError(self, err)
+            self.log.error(format_exc(err))
+            raise StoreError(self, format_exc(err))
 
     #proxy spec functions with proper exception handling
     def batch_create(self, objs): return self._batch_change('create', objs)

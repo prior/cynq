@@ -122,9 +122,11 @@ class VoodooMemoryApi(object):
 
 
 class VoodooBaseSpec(object):
-    def __init__(self, voodoo_api):
+    def __init__(self):
         super(VoodooBaseSpec, self).__init__()
-        self.api = voodoo_api
+        self.api = VoodooMemoryApi()
+        for conf in ['key','pushed','seeds','push_lambda','pre_fail_lambda','post_fail_lambda']:
+            setattr(self.api, conf, getattr(self.__class__,conf, getattr(self.api,conf)))
 
     def all_(self, *args, **kwargs): return self.api.all_(*args, **kwargs)
     def single_create(self, *args, **kwargs): return self.api.single_create(*args, **kwargs)
@@ -132,16 +134,12 @@ class VoodooBaseSpec(object):
     def single_delete(self, *args, **kwargs): return self.api.single_delete(*args, **kwargs)
 
 class VoodooRemoteSpec(VoodooBaseSpec, RemoteSpec):
-    def __init__(self, voodoo_api):
-        super(VoodooRemoteSpec,self).__init__(voodoo_api)
-        voodoo_api.attrs = self.__class__._deduce_all_attrs()
-        voodoo_api.key = self.__class__.key
-        voodoo_api.pushed = self.__class__.pushed
+    def __init__(self):
+        super(VoodooRemoteSpec,self).__init__()
+        self.api.attrs = self.__class__._deduce_all_attrs()
         
 class VoodooLocalSpec(VoodooBaseSpec, LocalSpec):
-    def __init__(self, voodoo_api, remote_spec_classes):
-        super(VoodooLocalSpec,self).__init__(voodoo_api)
-        voodoo_api.attrs = self.__class__._deduce_all_attrs(remote_spec_classes)
-        voodoo_api.key = self.__class__.key
-        voodoo_api.pushed = self.__class__.extras
+    def __init__(self, remote_spec_classes):
+        super(VoodooLocalSpec,self).__init__()
+        self.api.attrs = self.__class__._deduce_all_attrs(remote_spec_classes)
 

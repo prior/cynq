@@ -4,7 +4,7 @@ from cynq.junction import Junction
 from cynq.junction_phase import JunctionPhase
 from store import LocalStore, RemoteStore
 
-PHASES = [ 'local_create', 'local_reanimate', 'local_update', 'local_delete', 'remote_delete', 'remote_update', 'remote_create', 'final_phase' ]
+PHASES = [ 'init', 'local_create', 'local_reanimate', 'local_update', 'local_delete', 'remote_delete', 'remote_update', 'remote_create', 'cleanup' ]
 
 class Cynq(object):
     def __init__(self, local_spec, remote_specs, phases=None):
@@ -14,10 +14,10 @@ class Cynq(object):
         self.remote_stores = [RemoteStore(rs) for rs in remote_specs]
         self.phases = phases or list(PHASES)
 
-    def _build_junctions(self, remote_stores):
+    def _build_junctions(self, remote_stores, cynq_started_at):
         junctions = []
         for remote_store in remote_stores:
-            junctions.append(Junction(self.local_store, remote_store))
+            junctions.append(Junction(self.local_store, remote_store, cynq_started_at))
         return junctions
 
     def _pre_cynq(self, cynq_started_at):
@@ -42,11 +42,13 @@ class Cynq(object):
 
     def cynq(self):
         cynq_started_at = sanetime()
-        junctions = self._build_junctions(self._pre_cynq(cynq_started_at))
+        junctions = self._build_junctions(self._pre_cynq(cynq_started_at), cynq_started_at)
+        if junctions:
+            self.local_store.clear_stats()
         for phase_name in self.phases:
             for j in junctions:
                 if not j.fatal_failure:
-                    JunctionPhase(j,phase_name).execute(cynq_started_at)
+                    JunctionPhase(j,phase_name,cynq_started_at).execute(cynq_started_at)
         junctions = [j for j in junctions if not j.fatal_failure]
         if junctions:
             self.local_store.persist_changes()

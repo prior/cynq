@@ -3,10 +3,11 @@ from cynq import logging_helper
 REMOTE_STORE_FIELD_PROXIES = ['name', 'key']
 
 class Junction(object):
-    def __init__(self, local_store, remote_store):
+    def __init__(self, local_store, remote_store, cynq_started_at):
         super(Junction, self).__init__()
         self.ls = local_store
         self.rs = remote_store
+        self.cynq_started_at = cynq_started_at
         self.rs.junction = self
         self._build_proxies()
         self.fatal_failure = None
@@ -23,37 +24,46 @@ class Junction(object):
         #return (o for o in self.ls.list_ if not o.get('_deleted_at') and not o.get('_error') and o.get(self.key) not in self.ls_hash_)
     #extra_undeleted_locals = property(_get_extra_undeleted_locals)
 
-    def local_create(self, cynq_started_at):
+    def init(self):
+        self.rs.clear_stats()
+
+    def local_create(self):
         for robj in self._get_remotes(valid=True, keyed=True, common=False):
-            lobj = self.local_pullable_clone(robj)
+            lobj = self.scoped_clone(robj)
             self.log.debug("local create... ( local=%s remote=%s )" % (lobj, robj))
+            self.ls.touched_syncables(lobj, self.cynq_started_at)
             self.ls.create(lobj)
 
     def _local_update_obj(self, lobj, robj):
         diff = self.remote_pushable_merge(lobj, robj)
+        self.ls.synced(lobj, self.cynq_started_at)
         if diff:
             self.log.debug("local update... ( delta(old,new)=%s, local=%s )" % (diff, lobj))
+            self.ls.touched_syncables(lobj, self.cynq_started_at)
             self.ls.update(lobj)
 
-    def local_reanimate(self, cynq_started_at):
+    def local_reanimate(self):
         for lobj,robj in self._get_locals(valid=True, alive=False, expected=False, keyed=True, common=True, paired=True):
             lobj[self.ls.spec.soft_delete] = None
             self.log.debug("local reanimate... ( local=%s )" % lobj)
             self._local_update_obj(lobj, robj)
 
-    def local_update(self, cynq_started_at):
+    def local_update(self):
         for lobj,robj in self._get_locals(valid=True, alive=True, keyed=True, common=True, paired=True):
             if not self.has_local_changes_since_last_sync(lobj):
                 self._local_update_obj(lobj, robj)
 
-    def local_delete(self, cynq_started_at):
+    def local_delete(self):
         for lobj in self._get_locals(valid=True, alive=True, expected=True, keyed=True, common=False):
-            lobj[self.ls.spec.soft_delete] = cynq_started_at
+            lobj[self.ls.spec.soft_delete] = self.cynq_started_at
+            self.ls.touched_syncables(lobj, self.cynq_started_at)
+            self.ls.update(lobj)
             self.log.debug("local delete... ( local=%s )" % lobj)
 
-    def remote_delete(self, cynq_started_at):
+    def remote_delete(self):
         for lobj,robj in self._get_locals(valid=True, alive=False, expected=True, keyed=True, common=True, paired=True):
             self.log.debug("remote delete... ( remote=%s, local=%s )" % (robj, lobj))
+            robj['_source'] = lobj
             self.rs.delete(robj)
 
     def _remote_create_obj(self, lobj):
@@ -63,7 +73,7 @@ class Junction(object):
         self.rs.create(robj)
         return robj
 
-    def remote_create(self, cynq_started_at):
+    def remote_create(self):
         for lobj in self._get_locals(valid=True, expected=False, alive=True, common=False):
             self._remote_create_obj(lobj)
 
@@ -75,17 +85,22 @@ class Junction(object):
             self.rs.update(robj)
         return robj
 
-    def remote_update(self, cynq_started_at):
+    def remote_update(self):
         for lobj,robj in self._get_locals(valid=True, alive=True, keyed=True, common=True, paired=True):
             self._remote_update_obj(robj, lobj)
 
-    def final_phase(self, cynq_started_at):
-        self.rs.persist_changes()
+    def cleanup(self):
+        results = self.rs.persist_changes()
 
         # pull over any updates that happened cuz of remote creates/updates
         for robj in self._get_remotes(valid=True):
-            if robj.get('_source'):
-                self._local_update_obj(robj['_source'],robj)
+            self._local_update_obj(robj['_source'],robj)
+
+        # make sure we mark things that have cynqed as cynqed
+        for change_type in results:
+            for robj in results[change_type][0]:
+                if robj.get('_source') and not self.relevant_object_errors(robj) and not self.releveant_object_errors(robj.get('_source')):
+                    self.ls.synced(robj['_source'], self.cynq_started_at)
 
         # set expectations
         for lobj,robj in self._get_locals(valid=True, keyed=True, common=True, paired=True):
@@ -94,9 +109,7 @@ class Junction(object):
             self.ls.set_expected_remotely(self.name, lobj, False)
 
         # force new dates on updated/created stuff
-        self.ls.paint_pending_changes(cynq_started_at)
-
-
+        #self.ls.paint_pending_changes(cynq_started_at, self.rs.)
 
     def remote_pushable_clone(self, obj):
         return self.rs.pushable_clone(obj)
