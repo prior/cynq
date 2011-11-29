@@ -5,35 +5,71 @@ from traceback import format_exc
 
 class BaseStore(object):
     # methods to override
-    def all_(self, obj): return NotImplementedError()
-    def create(self, objs): return self._default_batch_change('create',objs)
-    def update(self, objs): return self._default_batch_change('update',objs)
-    def delete(self, objs): return self._default_batch_change('delete',objs)
+    def _all(self, obj): return NotImplementedError()
+    def _create(self, objs): return self._default_batch_change('create',objs) # return (successes, fails) in native objects
+    def _update(self, objs): return self._default_batch_change('update',objs)
+    def _delete(self, objs): return self._default_batch_change('delete',objs)
 
-    def single_create(self, obj): raise NotImplementedError()
-    def single_update(self, obj): raise NotImplementedError()
-    def single_delete(self, obj): raise NotImplementedError()
+    def _single_create(self, obj): raise NotImplementedError()
+    def _single_update(self, obj): raise NotImplementedError()
+    def _single_delete(self, obj): raise NotImplementedError()
 
     # overrideable methods if you want
     # pre/post cynq hooks
-    def pre_cynq(self, cynq_started_at): return True
-    def post_cynq(self, cynq_started_at): return True
-    def pre_cynq_phase(self, phase, cynq_started_at): return True
-    def post_cynq_phase(self, phase, cynq_started_at): return True
+    def _pre_cynq(self, cynq_started_at): return True
+    def _post_cynq(self, cynq_started_at): return True
+    def _pre_cynq_phase(self, phase, cynq_started_at): return True
+    def _post_cynq_phase(self, phase, cynq_started_at): return True
 
-    def createable(self, cynq_started_at): return True
-    def updateable(self, cynq_started_at): return True
-    def deleteable(self, cynq_started_at): return True
+    def _createable(self, cynq_started_at): return True
+    def _updateable(self, cynq_started_at): return True
+    def _deleteable(self, cynq_started_at): return True
 
 
+    def create(self, objs):
+        (successes, failed_keys) = self._create(self, objs)
+        for new, orig_obj in successes: self._created(new, orig_obj)
+        return (successes, failed_keys)
 
+    def update(self, objs): # no need to intervene on this guy since it should be updating in place and key shouldn't change
+        return self._update(self,obj)
+
+    def delete(self, objs):
+        (successes, failed_keys) = self._deleted(self, objs)
+        for old in successes: self._deleted(old)
+        return (successes, failed_keys)
+
+        
+    def _created(self, new, orig_obj):
+        self.list_.append(new)
+        self.hash_[getattr(new,self.spec.key)] = new
+        if orig_obj.get('_keyless_trigger_store'):
+            orig_obj.get('_keyless_trigger_store').keyless_keyed(orig_obj.get('_keyless_trigger_object'), getattr(new, self.spec.key))
+
+    def _deleted(self, old):
+        self.list_.remove(old)
+        self.hash_.pop(getattr(old,self.spec.key),None)
+
+    def apply_changeset(self, changeset):
+        self.create(changeset.creates.values())
+        self.update(changeset.updates.values())
+        self.delete(changeset.deletes.values())
+        self.create(changeset.keyless_creates.values())
+
+    #def purge_changeset_keyless_creates(self, changeset):
+        #self.delete(changeset.deletes.values())
+
+    def keyless_keyed(self, obj, key_value):
+        setattr(obj, self.spec.key, key_value)
+        self.hash_ = None
 
 
     # private methods
-    def __init__(self, key):
+    def __init__(self, spec, allows_unkeyed=False):
         super(BaseStore, self).__init__()
-        self.key = key
-        self._clear_list_cache()
+        self.spec = spec
+        self.allows_unkeyed
+        self._clear_cache()
         self.change_errors = 0
         self.change_attempts = 0
         self.log = logging_helper.get_log('cynq.store')
@@ -44,8 +80,15 @@ class BaseStore(object):
         return self._list
     list_ = property(_get_list)
 
-    def _clear_list_cache(self):
+    def _get_hash(self):
+        if self._hash is None:
+            self._hash = dict((getattr(o,self.spec.key),o) for o in list_ if hasattr(o,self.spec.key))
+        return self._hash
+    hash_ = property(_get_hash)
+
+    def _clear_cache(self):
         self._list = None
+        self._hash = None
 
     def _default_batch_change(self, change_type, objs):
         successes = []
@@ -64,6 +107,7 @@ class BaseStore(object):
     def _is_too_many_failures(self):
         if self.change_attempts <= 2: return False
         return self.change_errors > int(self.change_attempts/float(self.change_attempts)**0.5+1)
+
 
 
 class MemoryStore(BaseStore):
