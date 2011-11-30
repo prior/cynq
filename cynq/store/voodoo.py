@@ -1,5 +1,3 @@
-#from spec.remote import RemoteSpec
-#from spec.local import LocalSpec
 from uuid import uuid4
 from cynq import logging_helper
 from cynq.store import BaseStore
@@ -8,12 +6,16 @@ class VoodooMemoryStoreObject(object): pass
 
 class VoodooMemoryStore(BaseStore):
     def __init__(self, *args, **kwargs):
-        self.data = self._dconvert(kwargs.pop('dseeds') or [])
-        self.keygen = kwargs.pop('keygen') or (lambda dobj: str(uuid4())[0:8])
-        self.pre_fail = kwargs.pop('pre_fail') or (lambda obj,op,tries: False)
-        self.post_fail = kwargs.pop('post_fail') or (lambda obj,op,tries: False)
-        super(BaseStore, self).__init__(*args, **kwargs)
+        dseeds = kwargs.pop('dseeds',[])
+        self.keygen = kwargs.pop('keygen', (lambda dobj: str(uuid4())[0:8]))
+        self.pre_fail = kwargs.pop('pre_fail', (lambda obj,op,tries: False))
+        self.post_fail = kwargs.pop('post_fail', (lambda obj,op,tries: False))
+        super(VoodooMemoryStore, self).__init__(*args, **kwargs)
+        self.data = self._dlist_convert(dseeds)
         self._obj_hash = None
+        self.pre_ops = {}; self.post_ops = {}
+        for op in ('read','create','update','delete'):
+            self.pre_ops[op] = [];  self.post_ops[op] = []
         self.log = logging_helper.get_log('cynq.store.memory')
     
     def _dlist_convert(self, dobjs):
@@ -28,22 +30,22 @@ class VoodooMemoryStore(BaseStore):
     def _obj_convert(self, obj):
         return dict((attr,getattr(obj,attr)) for attr in self.spec.attrs_with_key if hasattr(obj,attr))
     
-    def _obj_list_convert(self, objs):
+    def _olist_convert(self, objs):
         return [self._obj_convert(obj) for obj in objs]
 
     def _get_obj_hash(self):
         if self._obj_hash is None: 
-            self._obj_hash = dict((getattr(obj,self.key), obj) for obj in self.seeds if hasattr(obj,self.key))
+            self._obj_hash = dict((getattr(obj,self.key), obj) for obj in self.data if hasattr(obj,self.key))
         return self._obj_hash
     obj_hash = property(_get_obj_hash)
 
-    def all_(self):
+    def _all(self):
         self._pre(read=True)
-        data = self.data
+        all_ = [obj for obj in self.data]
         self._post(read=True)
-        return data
+        return all_
 
-    def single_create(self, dobj):
+    def _single_create(self, dobj):
         self._pre(create=dobj)
         if not dobj.has_key(self.key): dobj[self.key] = self.keygen(dobj)
         obj = self._dobj_convert(dobj)
@@ -52,7 +54,7 @@ class VoodooMemoryStore(BaseStore):
         self._post(create=self._obj_convert(obj))
         return obj
 
-    def single_update(self, key, dchanges):
+    def _single_update(self, key, dchanges):
         obj = self.obj_hash[key]
         self._pre(update=self._obj_convert(obj))
         for k,v in dchanges.iteritems():
@@ -60,7 +62,7 @@ class VoodooMemoryStore(BaseStore):
         self._post(delete=self._obj_convert(obj))
         return obj
 
-    def single_delete(self, key):
+    def _single_delete(self, key):
         obj = self.obj_hash[key]
         self._pre(update=self._obj_convert(obj))
         self.data.remove(obj)
@@ -73,14 +75,14 @@ class VoodooMemoryStore(BaseStore):
             if kwargs.get(op):
                 dobj = kwargs.pop(op)
                 self.pre_ops[op].append(dobj)
-                if self.pre_fail_lambda(dobj,op,len(self.ops[op])): raise StandardError("forced to throw an error")
+                if self.pre_fail(dobj,op,len(self.pre_ops[op])): raise StandardError("forced to throw an error")
 
     def _post(self, **kwargs):
         for op in ('read','create','update','delete'):
             if kwargs.get(op):
                 dobj = kwargs.pop(op)
                 self.post_ops[op].append(dobj)
-                if self.post_fail_lambda(dobj,op,len(self.ops[op])): raise StandardError("forced to throw an error")
+                if self.post_fail(dobj,op,len(self.post_ops[op])): raise StandardError("forced to throw an error")
 
     def _get_pre_stats(self):
         return tuple(map(lambda op: len(self.pre_ops[op]),('read','create','update','delete')))
@@ -99,6 +101,10 @@ class VoodooMemoryStore(BaseStore):
             self.pre_ops[op] = []
             self.post_ops[op] = []
 
+    def _set_ddata(self, val): self.data = self._dlist_convert(val)
+    def _get_ddata(self): return self._olist_convert(self.data)
+    ddata = property(_get_ddata, _set_ddata)
+
     #def seed(self, count):
         #self.seeds = [self.build_seed() for i in xrange(count)]
         #self._hash = None
@@ -107,27 +113,4 @@ class VoodooMemoryStore(BaseStore):
     #def build_seed(self):
         #return dict((attr,str(uuid4())[:4]) for attr in self.attrs)
 
-
-
-#class VoodooBaseSpec(object):
-    #def __init__(self):
-        #super(VoodooBaseSpec, self).__init__()
-        #self.api = VoodooMemoryApi()
-        #for conf in ['key','pushed','seeds','push_lambda','pre_fail_lambda','post_fail_lambda']:
-            #setattr(self.api, conf, getattr(self.__class__,conf, getattr(self.api,conf)))
-
-    #def all_(self, *args, **kwargs): return self.api.all_(*args, **kwargs)
-    #def single_create(self, *args, **kwargs): return self.api.single_create(*args, **kwargs)
-    #def single_update(self, *args, **kwargs): return self.api.single_update(*args, **kwargs)
-    #def single_delete(self, *args, **kwargs): return self.api.single_delete(*args, **kwargs)
-
-#class VoodooRemoteSpec(VoodooBaseSpec, RemoteSpec):
-    #def __init__(self):
-        #super(VoodooRemoteSpec,self).__init__()
-        #self.api.attrs = self.__class__._deduce_all_attrs()
-        
-#class VoodooLocalSpec(VoodooBaseSpec, LocalSpec):
-    #def __init__(self, remote_spec_classes):
-        #super(VoodooLocalSpec,self).__init__()
-        #self.api.attrs = self.__class__._deduce_all_attrs(remote_spec_classes)
 

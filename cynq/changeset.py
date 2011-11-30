@@ -1,4 +1,6 @@
 from copy import deepcopy
+from cynq.error import Error
+import hashlib
 
 class ChangeSet(object):
     def __init__(self, spec, creates=None, updates=None, deletes=None, keyless_creates=None):
@@ -22,8 +24,8 @@ class ChangeSet(object):
 
     def build(self, from_store, to_store):
         from_keys = set(from_store.hash_)
-        to_keys = set(to_store_.hash_)
-        self.keyless_creates = dict((self._hash(l),l) for l in [self._scope(o,from_store) for o in from_store.list_ if o.get(self.key) is None])
+        to_keys = set(to_store.hash_)
+        self.keyless_creates = dict((self._hash(l),l) for l in [self._scope(o,from_store) for o in from_store.list_ if getattr(o, self.key, None) is None])
         self.creates = dict((k,self._scope(from_store.hash_[k])) for k in (from_keys - to_keys))
         self.updates = dict(kv for kv in ((k,self._diff(from_store.hash_[k],to_store.hash_[k])) for k in (from_keys & to_keys)) if kv[1])
         self.deletes = set(to_keys - from_keys)
