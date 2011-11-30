@@ -30,6 +30,7 @@ class Arm(object):
         self.api = api
         self.local = local
         self.snapshot = snapshot
+        #assign arm to 
 
     def _assert_valid_spec(self):
         individual_sum = sum(len(getattr(self,conf)) for conf in ATTR_COMPONENTS)

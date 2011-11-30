@@ -1,19 +1,16 @@
 import unittest2
-from cynq.voodoo import VoodooMemoryApi, VoodooRemoteSpec, VoodooLocalSpec
+from cynq.store import VoodooMemoryStore
 from copy import deepcopy
 import uuid
+import helper
+from cynq.arm import Arm
 #from pprint import pprint
 
-class TestVoodooRemoteSpec(VoodooRemoteSpec):
-    name = 'remote'
+class TestVoodooArm(Arm):
     pushed = ('push',)
     pulled = ('pull',)
     shared = ('key','share')
     key = 'key'
-
-class TestVoodooLocalSpec(VoodooLocalSpec):
-    extras = ('id',)
-    key = 'id'
 
 
 class TestCase(unittest2.TestCase):
@@ -24,13 +21,14 @@ class TestCase(unittest2.TestCase):
         pass
 
     def test_read_accounting(self):
-        spec = TestVoodooRemoteSpec(VoodooMemoryApi())
-        expected = deepcopy(spec.api.seed(4))
-        self.assertEquals({'pre':(0,0,0,0),'post':(0,0,0,0)},spec.api.stats)
-        self.assert_equal_object_lists(expected, spec.all_())
-        self.assertEquals({'pre':(1,0,0,0),'post':(1,0,0,0)},spec.api.stats)
-        self.assert_equal_object_lists(expected, spec.all_())
-        self.assertEquals({'pre':(2,0,0,0),'post':(2,0,0,0)},spec.api.stats)
+        store = VoodooMemoryStore()
+        TestVoodooArm(store,store,store)
+        expected = deepcopy(store.api.seed(4))
+        self.assertEquals(((0,0,0,0),(0,0,0,0)),store.stats)
+        helper.assert_equal_object_lists(expected, store._obj_list_convert(store.all_()))
+        self.assertEquals(((1,0,0,0),(1,0,0,0)),store.stats)
+        helper.assert_equal_object_lists(expected, store._obj_list_convert(store.all_()))
+        self.assertEquals(((2,0,0,0),(2,0,0,0)),store.stats)
 
     def test_create_accounting(self):
         spec = TestVoodooRemoteSpec(VoodooMemoryApi())
@@ -133,28 +131,4 @@ class TestCase(unittest2.TestCase):
         self.assertRaises(StandardError, spec.single_delete, *[delete_obj])
         self.assertEquals({'pre':(7,1,1,1),'post':(7,0,0,0)},spec.api.stats)
         self.assert_equal_object_lists(new_list, spec.all_())
-
-    def assert_equal_object_lists(self, list1, list2, remove_attrs=None):
-        if remove_attrs:
-            list1 = self.remove_attrs_in_list(deepcopy(list1), remove_attrs)
-            list2 = self.remove_attrs_in_list(deepcopy(list2), remove_attrs)
-        t1,t2 = self._to_tuples(list1,list2)
-        self.assertEquals(t1,t2)
-
-    def assert_not_equal_object_lists(self, list1, list2):
-        t1,t2 = self._to_tuples(list1,list2)
-        self.assertNotEquals(t1,t2)
-
-    def remove_attrs_in_list(self, list_, attrs):
-        for o in list_:
-            for a in attrs:
-                if o.has_key(a): 
-                    del o[a]
-        return list_
-        
-    def _to_tuples(self, l1, l2):
-        t1 = tuple(sorted(tuple(sorted(o.iteritems())) for o in l1))
-        t2 = tuple(sorted(tuple(sorted(o.iteritems())) for o in l2))
-        return (t1,t2)
-
 

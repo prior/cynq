@@ -1,9 +1,8 @@
 #from spec.remote import RemoteSpec
 #from spec.local import LocalSpec
 from uuid import uuid4
-import logging_helper
-
-from store import BaseStore
+from cynq import logging_helper
+from cynq.store import BaseStore
 
 class VoodooMemoryStoreObject(object): pass
 
@@ -17,11 +16,8 @@ class VoodooMemoryStore(BaseStore):
         self._obj_hash = None
         self.log = logging_helper.get_log('cynq.store.memory')
     
-    def _dlist_convert(self, dlist):
-        data = []
-        for d in dlist:
-            data.append(self._dobj_convert(d))
-        return data
+    def _dlist_convert(self, dobjs):
+        return [self._dobj_convert(dobj) for dobj in dobjs]
 
     def _dobj_convert(self, dobj):
         obj = VoodooMemoryStoreObject()
@@ -31,6 +27,9 @@ class VoodooMemoryStore(BaseStore):
 
     def _obj_convert(self, obj):
         return dict((attr,getattr(obj,attr)) for attr in self.spec.attrs_with_key if hasattr(obj,attr))
+    
+    def _obj_list_convert(self, objs):
+        return [self._obj_convert(obj) for obj in objs]
 
     def _get_obj_hash(self):
         if self._obj_hash is None: 
@@ -83,16 +82,16 @@ class VoodooMemoryStore(BaseStore):
                 self.post_ops[op].append(dobj)
                 if self.post_fail_lambda(dobj,op,len(self.ops[op])): raise StandardError("forced to throw an error")
 
-    def _get_pre_lens(self):
+    def _get_pre_stats(self):
         return tuple(map(lambda op: len(self.pre_ops[op]),('read','create','update','delete')))
-    pre_stats = property(_get_pre_lens)
+    pre_stats = property(_get_pre_stats)
 
-    def _get_post_lens(self):
+    def _get_post_stats(self):
         return tuple(map(lambda op: len(self.post_ops[op]),('read','create','update','delete')))
-    post_stats = property(_get_post_lens)
+    post_stats = property(_get_post_stats)
 
     def _get_stats(self):
-        return (self.pre_ops, self.post_ops)
+        return (self.pre_stats, self.post_stats)
     stats = property(_get_stats)
 
     def clear_stats(self):
