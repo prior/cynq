@@ -1,16 +1,16 @@
 from uuid import uuid4
-from cynq import logging_helper
-from cynq.store import BaseStore
+from . import logging_helper
+from store import BaseStore
 
-class VoodooMemoryStoreObject(object): pass
+class VoodooStoreObject(object): pass
 
-class VoodooMemoryStore(BaseStore):
+class VoodooStore(BaseStore):
     def __init__(self, *args, **kwargs):
         dseeds = kwargs.pop('dseeds',[])
         self.keygen = kwargs.pop('keygen', (lambda dobj: str(uuid4())[0:8]))
         self.pre_fail = kwargs.pop('pre_fail', (lambda obj,op,tries: False))
         self.post_fail = kwargs.pop('post_fail', (lambda obj,op,tries: False))
-        super(VoodooMemoryStore, self).__init__(*args, **kwargs)
+        super(VoodooStore, self).__init__(*args, **kwargs)
         self.data = self._dlist_convert(dseeds)
         self._obj_hash = None
         self.pre_ops = {}; self.post_ops = {}
@@ -22,7 +22,7 @@ class VoodooMemoryStore(BaseStore):
         return [self._dobj_convert(dobj) for dobj in dobjs]
 
     def _dobj_convert(self, dobj):
-        obj = VoodooMemoryStoreObject()
+        obj = VoodooStoreObject()
         for attr in self.spec.attrs_with_key:
             if dobj.has_key(attr): setattr(obj, attr, dobj.get(attr))
         return obj

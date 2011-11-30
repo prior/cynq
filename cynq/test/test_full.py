@@ -43,3 +43,9 @@ class TestCase(helper.TestCase):
     def test
         # assert fine grained changes!
         # assert no changes on subsequent cynqs!
+
+    def assert_no_changes_on_another_cynq(self, controller):
+        for arm in self.arms()
+        controller.clear_stats()
+
+
