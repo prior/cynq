@@ -31,7 +31,7 @@ class TestCase(unittest2.TestCase):
         pass
 
     def test_read(self):
-        spec = TestSharedKeyVoodooRemoteSpec(VoodooMemoryApi())
+        spec = TestSharedKeySpec()
         expected = deepcopy(spec.api.seed(4))
         store = BaseStore(spec)
         self.assertEquals({'pre':(0,0,0,0),'post':(0,0,0,0)},spec.api.stats)

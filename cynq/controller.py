@@ -1,14 +1,25 @@
-class CynqController(object):
-    def __init__(self, fresh, local, snapshot):
-        self.fresh = fresh
-        self.local = local
-        self.snapshot = snapshot
+class Arm(object):
+    def __init__(self, api_store, local_store, snapshot_store):
+        self.api = api_store
+        self.local = local_store
+        self.snapshot = snapshot_store
+
+    def cynq(self)
+        local_changeset = ChangeSet(self.local.changeset_against(self.snapshot)
+        if not initial or not local_changeset: return 0
+        remote_changeset = self.remote.changeset_against(self.snapshot)
+        
+
+class CynqMaster(object):
+    def __init__(self, specs):
+
 
     def cynq(self, initial=True):
-        started_at = sanetime()
+        self.started_at = sanetime()
         local_changeset = self.local.changeset_against(self.snapshot)
         if not initial or not local_changeset: return 0
         remote_changeset = self.remote.changeset_against(self.snapshot)
+
 
 
 

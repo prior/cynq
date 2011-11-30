@@ -8,7 +8,7 @@ class ChangeSet(object):
         self.attrs = spec.attrs_with_key
         self.creates = creates or {}
         self.updates = updates or {}
-        self.deletes = deletes or {}
+        self.deletes = deletes or set()
         self.keyless_creates = keyless_creates or {}
 
     def __len__(self):
@@ -25,11 +25,11 @@ class ChangeSet(object):
         to_keys = set(to_store_.hash_)
         self.keyless_creates = dict((self._hash(l),l) for l in [self._scope(o,from_store) for o in from_store.list_ if o.get(self.key) is None])
         self.creates = dict((k,self._scope(from_store.hash_[k])) for k in (from_keys - to_keys))
-        self.updates = dict(kv for kv in ((k,(self._diff(from_store.hash_[k],to_store.hash_[k]),from_store.hash_[k],to_store.hash[k])) for k in (from_keys & to_keys)) if kv[1])
-        self.deletes = dict((k,self._scope(to_store.hash_[k])) for k in (to_keys - from_keys))
+        self.updates = dict(kv for kv in ((k,self._diff(from_store.hash_[k],to_store.hash_[k])) for k in (from_keys & to_keys)) if kv[1])
+        self.deletes = set(to_keys - from_keys)
 
         # sanity checks:
-        if set(self.creates) & set(self.updates) & set(self.deletes): raise Error("This should never happen!")
+        if set(self.creates) & set(self.updates) & self.deletes: raise Error("This should never happen!")
 
         return self
 
@@ -38,9 +38,8 @@ class ChangeSet(object):
 
     def _scope(self, obj, keyless_trigger_store=False):
         d = dict((attr,getattr(obj,attr,None)) for attr in self.attrs) 
-        if add_keyless_trigger:
-            d['_keyless_trigger_store'] = keyless_trigger_store
-            d['_keyless_trigger_object'] = obj
+        if keyless_trigger_store:
+            d['_keyless_update_trigger'] = keyless_trigger_store.generate_update_trigger(obj)
         return d
 
     def _hash(self, obj):
@@ -49,145 +48,43 @@ class ChangeSet(object):
     def subtract(self, changeset):
         # sanity checks:
         if set(self.creates) & set(changeset.updates): raise Error("This should never happen!")
-        if set(self.creates) & set(changeset.deletes): raise Error("This should never happen!")
+        if set(self.creates) & changeset.deletes: raise Error("This should never happen!")
         if set(self.updates) & set(changeset.creates): raise Error("This should never happen!")
-        if set(self.deletes) & set(changeset.creates): raise Error("This should never happen!")
+        if self.deletes & set(changeset.creates): raise Error("This should never happen!")
 
         # honor deletes over updates:
-        for k in set(self.updates) & set(changeset.deletes): del self.updates[k]
+        for k in set(self.updates) & changeset.deletes: del self.updates[k]
 
         # remove duplicate measures
-        for k in set(self.deletes) & set(changeset.deletes): del self.deletes[k]
+        for k in self.deletes & changeset.deletes: self.deletes.remove(k)
         for k in set(self.creates) & set(changeset.creates): 
             create_obj = self.creates.pop(k)
             diff = self._diff(create_obj, changeset.creates[k])
-            if diff: self.updates[k] = (diff, create_obj, changeset.creates[k])
+            if diff: self.updates[k] = diff
 
-        # remove similar looking keyless creates
+        # update keys on similar looking keyless creates (this situation could only occur after certain cynq failures (or creation of like objects on both sides within cynq cycle)
         creates_by_hash = dict((self._hash(o),o) for o in changeset.creates.values())
-        for h in set(self.keyless_creates) & set(creates_by_hash): del self.keyless_creates[h]
+        for h in set(self.keyless_creates) & set(creates_by_hash):
+            dobj = self.keyless_creates[h]
+            dobj['_keyless_update_trigger'](getattr(creates_by_hash[h], self.key))
+            del self.keyless_creates[h]  # no longer needed now
 
         # change updates or remove if complete duplicate
         for k in set(self.updates) & set(changeset.updates):
             for attr in self.attrs:
-                if self.updates[k][0].has(attr) and changeset.updates[k][0].has(attr) and self.updates[k][0][attr]==changeset.updates[k][0][attr]:
-                    del self.updates[k][0][attr]
-            if not self.updates[k][0]: del self.updates[k] # remove if nothing left to change
+                if self.updates[k].has(attr) and changeset.updates[k].has(attr) and self.updates[k][attr]==changeset.updates[k][attr]:
+                    del self.updates[k][attr]
+            if not self.updates[k]: del self.updates[k] # remove if nothing left to change
 
         # sanity checks:
-        if set(self.creates) & set(self.updates) & set(self.deletes): raise Error("This should never happen!")
+        if set(self.creates) & set(self.updates) & self.deletes: raise Error("This should never happen!")
         return self
 
-    #def mold(self, store):
-        #leftovers = dict((id(o),self._scope(o)) for o in list_ if o.get(self.key) is None)
-
-        ## let incoming deletes take priority (delete seems like a command we should respect more than update even if it's coming from remote
-        #for k in set(self.deletes) - set(store.hash_): del self.deletes[k]
-        #for k in set(self.updates) - set(store.hash_): del self.updates[k]
-
-        ## drop creates down to updates or nothing at all depending
-        #for k in set(self.creates) & set(store.hash_):
-            #create_obj = self.creates.pop(k)
-            #diff = self._diff(create_obj, store.hash_[k])
-            #if diff: self.updates[k] = (diff, create_obj, store.hash_[k])
-
-        ## remove similar looking keyless creates
-        #existing_by_hash = dict((self._hash(o),o) for o in changeset.creates.values())
-        #for h in set(self.keyless_creates) & set(creates_by_hash): del self.keyless_creates[h]
-        
-
-            #c
-
-            #if k not in store.hash_: del self.deletes[k]
-        #for k in list(self.creates):
-            #if k in hash_: self.updates[k] = self.creates.pop(k)
-        #for k in set(self.updates):
-            #if k not in hash_: raise Error("This should never happen!")
-            #for a,v in hash_[k].iteritems():
-                #if self.updates[k].has(a) and self.updates[k][a] == v:
-                    #del self.updates[k][a]
-        #self.updates = dict((k,v) for k,v in self.updates.iteritems() if v)
-        #return self
-
-    
-    #def merge(self, changeset):
-        ## sanity checks:
-        #if set(self.creates) & set(changeset.updates): raise Error("This should never happen!")
-        #if set(self.creates) & set(changeset.deletes): raise Error("This should never happen!")
-        #if set(self.updates) & set(changeset.creates): raise Error("This should never happen!")
-        #if set(self.deletes) & set(changeset.creates): raise Error("This should never happen!")
-
-        ## overrides:
-        #for k in set(self.deletes) & set(changeset.updates): del self.deletes[k]
-        #for k in set(self.updates) & set(changeset.deletes): del self.updates[k]
-
-        ## update creates and deletes
-        #self.orphaned_creates.update(changeset.orphaned_creates)
-        #self.creates.update(changeset.creates)
-        #self.deletes.update(changeset.deletes)
-
-        ## update updates that aren't shared
-        #overlap = set(self.updates) & set(changeset.updates)
-        #self.updates.update(dict((k,v) for k,v in changeset.updates.iteritems() if k not in overlap))
-
-        ## for updates that are shared, we can go down to attribute levels
-        #for k in overlap_update_keys:
-            #for attr in self.attrs:
-                #if changeset.updates[k].has(attr):
-                    #self.updates[k][attr] = changeset.updates[k][attr]
-            #self.updates[k]
-        #self.updates.update(changeset.updates)
-
-        ## sanity checks:
-        #if set(self.creates) & set(self.updates) & set(self.deletes): raise Error("This should never happen!")
-        #return self
-
-    #def apply_(self, store):
-        #rcreates = store.create(self.creates)[1]
-        #rupdates = store.update(self.updates)[1]
-        #rdeletes = store.delete(self.deletes)[1]
-        #rorphans = ([],[])
-        #if self.orphaned_creates:
-            #rorphans = store.create(self.orphaned_creates)
-        #return (rcreates[0]+rupdates[0]+rdeletes[0]+rorphans[0], rcreates[1]+rupdates[1]+rdeletes[1]+rorphans[1]) 
-
-    #def remove_changed
-
-        
-        #updates = dict((o.get(self.key),o) for o in store.update(deepcopy(self.updates)))
-        #deletes = dict((o.get(self.key),o) for o in store.delete(deepcopy(self.deletes)))
-        #return ChangeSet(self.attrs, self.key, creates, updates, deletes)
-
-    #def apply_subtracting_errors(self, store):
-        #hash_ = dict((o[self.key],self._scope(o)) for o in store.list_ if o.get(self.key) is not None)
-        #deletes = [self.deletes[k] for k in self.deletes if k not in hash_]
-        #(successes, failures, leftovers) = store.delete(deletes)
-        #for removal in failures + leftovers:
-            #self.deletes[removal]
-            #HERHEHERHEHEHREHHERHRE
-
-        #for k in set(self.deletes):
-            #if k not in hash_: del self.deletes[k]
-        #deletes = dict((o.get(self.key),o) for o in store.delete(deepcopy(self.deletes)))
-
-
-
-    #def filter_and_apply(self, store):
-        #self.filter_(store.list_)
-        #return self.apply(store)
 
 
 class DjangoCacheStore(object):
     def __init__(self):
         super(Store,self).__init__()
-
-    def all_(self):
-        pass
-
-    def create(self, create_set):
-
-
-        
 
 
 class Controller(object):

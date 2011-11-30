@@ -1,3 +1,3 @@
 from base import BaseStore
-from local import LocalStore
-from remote import RemoteStore
+from memory import MemoryStore
+from voodoo import VoodooMemoryStore

@@ -16,7 +16,7 @@ class Arm(object):
 
     # private methods
     def __init__(self, api, local, snapshot):
-        super(Spec,self).__init__()
+        super(Arm,self).__init__()
         for conf in ATTR_COMPONENTS:
             setattr(self, conf, set(getattr(self.__class__, conf, ())))
         self.key = self.__class__.key
@@ -26,12 +26,10 @@ class Arm(object):
         self.attrs = self.attrs_with_key = set(list(attrs_set) + [self.key])
         self._assert_valid_spec()
         self.key_remotely_generated = self.key in self.remotely_generated
+        self.stores = (api, local, snapshot)
         self.api = api
         self.local = local
         self.snapshot = snapshot
-        api.spec = self
-        local.spec = self
-        snapshot.spec = self
 
     def _assert_valid_spec(self):
         individual_sum = sum(len(getattr(self,conf)) for conf in ATTR_COMPONENTS)
@@ -43,7 +41,13 @@ class Arm(object):
         if not self.key:
             raise Error("Gotta specify a key dude!")
 
-    def _cynq(self):
+    def _pre_cynq(self, master):
+        if any
+        self.
+
+    def _cynq(self, master):
+        _pre_arm_cynq(self, master)
+
         outgoing_changeset = ChangeSet(self).build(self.local, self.snapshot)
         incoming_changeset = ChangeSet(self).build(self.api, self.snapshot)
         self.api.apply_changes(outgoing_changeset.subtract(incoming_changeset))
@@ -51,4 +55,6 @@ class Arm(object):
         outgoing_changeset = ChangeSet(self).build(self.local, self.snapshot)
         incoming_changeset = ChangeSet(self).build(self.api, self.snapshot) 
         self.local.apply_changes(incoming_changeset.subtract(outgoing_changeset))
+
+        _post_arm_cynq(self, master)
 
