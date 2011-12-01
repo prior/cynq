@@ -16,18 +16,18 @@ class ChangeSet(object):
     def __len__(self):
         return sum(len(getattr(self,a)) for a in ['creates','updates','deletes','keyless_creates'])
 
-    def copy(self):
-        kwargs = {'spec':set(self.spec) }
-        for a in ('creates','updates','deletes','orphaned_creates'):
-            kwargs[a] = deepcopy(getattr(self,a))
-        return ChangeSet(**kwargs)
+    #def copy(self):
+        #kwargs = {'spec':set(self.spec) }
+        #for a in ('creates','updates','deletes','keyless_creates'):
+            #kwargs[a] = deepcopy(getattr(self,a))
+        #return ChangeSet(**kwargs)
 
-    def build(self, from_store, to_store):
+    def build(self, from_store, to_store, suppress_attrs=None):
         from_keys = set(from_store.hash_)
         to_keys = set(to_store.hash_)
-        self.keyless_creates = dict((self._hash(l),l) for l in [self._scope(o,from_store) for o in from_store.list_ if getattr(o, self.key, None) is None])
-        self.creates = dict((k,self._scope(from_store.hash_[k])) for k in (from_keys - to_keys))
-        self.updates = dict(kv for kv in ((k,self._diff(from_store.hash_[k],to_store.hash_[k])) for k in (from_keys & to_keys)) if kv[1])
+        self.keyless_creates = dict((self._hash(l),l) for l in [self._scope(o,suppress_attrs,from_store) for o in from_store.list_ if getattr(o, self.key, None) is None])
+        self.creates = dict((k,self._scope(from_store.hash_[k], suppress_attrs)) for k in (from_keys - to_keys))
+        self.updates = dict(kv for kv in ((k,self._diff(from_store.hash_[k],to_store.hash_[k],supress_attrs)) for k in (from_keys & to_keys)) if kv[1])
         self.deletes = set(to_keys - from_keys)
 
         # sanity checks:
@@ -35,11 +35,13 @@ class ChangeSet(object):
 
         return self
 
-    def _diff(self, from_, to_):
-        return dict((a,getattr(from_,a,None)) for a in self.attrs if getattr(from_,a,None) != getattr(to_,a,None))
+    def _diff(self, from_, to_, suppress_attrs=None):
+        suppress_set = set(supress_attrs or [])
+        return dict((a,getattr(from_,a,None)) for a in self.attrs if getattr(from_,a,None) != getattr(to_,a,None) and a not in suppress_set)
 
-    def _scope(self, obj, keyless_trigger_store=False):
-        d = dict((attr,getattr(obj,attr,None)) for attr in self.attrs) 
+    def _scope(self, obj, suppress_attrs=None, keyless_trigger_store=None):
+        suppress_set = set(supress_attrs or [])
+        d = dict((attr,getattr(obj,attr,None)) for attr in self.attrs if attr not in suppress_set) 
         if keyless_trigger_store:
             d['_keyless_update_trigger'] = keyless_trigger_store.generate_update_trigger(obj)
         return d
@@ -47,7 +49,7 @@ class ChangeSet(object):
     def _hash(self, obj):
         return hashlib.sha256('|'.join([str(getattr(obj,attr,None)) for attr in self.attrs if attr != self.key])).hexdigest
 
-    def subtract(self, changeset):
+    def subtract(self, changeset, remote):
         # sanity checks:
         if set(self.creates) & set(changeset.updates): raise Error("This should never happen!")
         if set(self.creates) & changeset.deletes: raise Error("This should never happen!")
@@ -81,6 +83,5 @@ class ChangeSet(object):
         # sanity checks:
         if set(self.creates) & set(self.updates) & self.deletes: raise Error("This should never happen!")
         return self
-
 
 

@@ -19,13 +19,13 @@ class Arm(object):
         return all(store._post_cynq() for store in (self.api, self.local, self.snapshot))
 
     def _cynq_api(self):
-        outgoing_changeset = ChangeSet(self.spec).build(self.local, self.snapshot)
+        outgoing_changeset = ChangeSet(self.spec).build(self.local, self.snapshot, self.spec.rpushed)
         incoming_changeset = ChangeSet(self.spec).build(self.api, self.snapshot)
         self.api.apply_changeset(outgoing_changeset.subtract(incoming_changeset))
 
     def _cynq_local(self):
         outgoing_changeset = ChangeSet(self.spec).build(self.local, self.snapshot)
-        incoming_changeset = ChangeSet(self.spec).build(self.api, self.snapshot) 
+        incoming_changeset = ChangeSet(self.spec).build(self.api, self.snapshot, self.spec.rpulled) 
         self.local.apply_changeset(incoming_changeset.subtract(outgoing_changeset))
 
     def _cynq_snapshot(self):
