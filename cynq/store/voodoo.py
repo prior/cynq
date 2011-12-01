@@ -6,12 +6,11 @@ class VoodooStoreObject(object): pass
 
 class VoodooStore(BaseStore):
     def __init__(self, *args, **kwargs):
-        dseeds = kwargs.pop('dseeds',[])
         self.keygen = kwargs.pop('keygen', (lambda dobj: str(uuid4())[0:8]))
         self.pre_fail = kwargs.pop('pre_fail', (lambda obj,op,tries: False))
         self.post_fail = kwargs.pop('post_fail', (lambda obj,op,tries: False))
         super(VoodooStore, self).__init__(*args, **kwargs)
-        self.data = self._dlist_convert(dseeds)
+        self.data = []
         self._obj_hash = None
         self._clear_stats()
         self.log = logging_helper.get_log('cynq.store.memory')

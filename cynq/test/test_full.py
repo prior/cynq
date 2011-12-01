@@ -1,12 +1,9 @@
 from .helper import TestCase
-from cynq.controller import Controller
-from cynq.store import VoodooStore
-from cynq.spec import Spec
-from cynq.arm import Arm
+from cynq import Controller, VoodooStore, BaseSpec, Arm
 #from pprint import pprint
 
 
-class TestSpec(Spec):
+class TestSpec(BaseSpec):
     name = 'test'
     rpushed = ('push',)
     rpulled = ('pull',)
@@ -21,13 +18,13 @@ class TestSpec(Spec):
 class FullTestCase(TestCase):
     def setUp(self):
         spec = TestSpec()
-        self.local = VoodooStore(spec)
-        self.api1 = VoodooStore(spec)
-        self.snapshot1 = VoodooStore(spec)
-        self.api2 = VoodooStore(spec)
-        self.snapshot2 = VoodooStore(spec)
-        self.arm1 = Arm(self.api1,self.local,self.snapshot1)
-        self.arm2 = Arm(self.api2,self.local,self.snapshot2)
+        self.local = VoodooStore()
+        self.api1 = VoodooStore()
+        self.snapshot1 = VoodooStore()
+        self.api2 = VoodooStore()
+        self.snapshot2 = VoodooStore()
+        self.arm1 = Arm(spec, self.api1,self.local,self.snapshot1)
+        self.arm2 = Arm(spec, self.api2,self.local,self.snapshot2)
 
     def tearDown(self):
         pass
@@ -45,7 +42,7 @@ class FullTestCase(TestCase):
         expected = [{'key':1, 'push':2, 'pull':3, 'share':4}]
         self.api1.ddata = expected
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected,(1,1,0,0),self.local)
+        self.assert_store(expected,(6,1,0,0),self.local)
         self.assert_store(expected,(1,0,0,0),self.api1)
         self.assert_store(expected,(1,1,0,0),self.snapshot1)
         self.assert_store(expected,(1,1,0,0),self.api2)
@@ -65,7 +62,7 @@ class FullTestCase(TestCase):
         expected = [{'key':1, 'push':2, 'pull':3, 'share':4}]
         self.local.ddata = expected
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected,(1,0,0,0),self.local)
+        self.assert_store(expected,(6,0,0,0),self.local)
         self.assert_store(expected,(1,1,0,0),self.api1)
         self.assert_store(expected,(1,1,0,0),self.snapshot1)
         self.assert_store(expected,(1,1,0,0),self.api2)
@@ -91,7 +88,7 @@ class FullTestCase(TestCase):
         self.snapshot2.ddata = seeds
         expected = []
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected,(1,0,0,0),self.local)
+        self.assert_store(expected,(6,0,0,0),self.local)
         self.assert_store(expected,(1,0,0,1),self.api1)
         self.assert_store(expected,(1,0,0,1),self.snapshot1)
         self.assert_store(expected,(1,0,0,1),self.api2)
@@ -117,7 +114,7 @@ class FullTestCase(TestCase):
         self.api2.ddata = seeds
         expected = []
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected,(1,0,0,1),self.local)
+        self.assert_store(expected,(6,0,0,1),self.local)
         self.assert_store(expected,(1,0,0,0),self.api1)
         self.assert_store(expected,(1,0,0,1),self.snapshot1)
         self.assert_store(expected,(1,0,0,1),self.api2)
@@ -145,7 +142,7 @@ class FullTestCase(TestCase):
         expected = [{'key':1, 'push':2, 'pull':3, 'share':5}]
         self.local.ddata = expected
         cynq = Controller(self.arm1,self.arm2).cynq()
-        self.assert_store(expected,(1,0,0,0),self.local)
+        self.assert_store(expected,(6,0,0,0),self.local)
         self.assert_store(expected,(1,0,1,0),self.api1)
         self.assert_store(expected,(1,0,1,0),self.snapshot1)
         self.assert_store(expected,(1,0,1,0),self.api2)
@@ -173,7 +170,7 @@ class FullTestCase(TestCase):
         expected = [{'key':1, 'push':2, 'pull':3, 'share':5}]
         self.api1.ddata = expected
         cynq = Controller(self.arm1,self.arm2).cynq()
-        self.assert_store(expected,(1,0,1,0),self.local)
+        self.assert_store(expected,(6,0,1,0),self.local)
         self.assert_store(expected,(1,0,0,0),self.api1)
         self.assert_store(expected,(1,0,1,0),self.snapshot1)
         self.assert_store(expected,(1,0,1,0),self.api2)
@@ -212,7 +209,7 @@ class FullTestCase(TestCase):
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_one_arm_local_create_pushkey(self):
-        class PushKeySpec(Spec):
+        class PushKeySpec(BaseSpec):
             name = 'pushkey'
             rpushed = ('key',)
             rpulled = ('pull',)
@@ -220,10 +217,10 @@ class FullTestCase(TestCase):
             key = 'key'
 
         spec = PushKeySpec()
-        local = VoodooStore(spec)
-        api = VoodooStore(spec, keygen=lambda dobj: 9)
-        snapshot = VoodooStore(spec)
-        arm = Arm(api, local, snapshot)
+        local = VoodooStore()
+        api = VoodooStore(keygen=lambda dobj: 9)
+        snapshot = VoodooStore()
+        arm = Arm(spec, api, local, snapshot)
         local.ddata = [{'pull':3, 'share':4}]
         expected = [{'key':9, 'pull':3, 'share':4}]
         cynq = Controller(arm).cynq()
@@ -249,10 +246,11 @@ class FullTestCase(TestCase):
 
         controller.cynq()
 
+        expected_local_reads = len(controller.arms)==1 and 1 or len(controller.arms)*3
         for arm in controller.arms:
-            self.assert_store(arm_ddata[arm],(1,0,0,0),(1,0,0,0),arm.local)
-            self.assert_store(arm_ddata[arm],(1,0,0,0),(1,0,0,0),arm.api)
-            self.assert_store(arm_ddata[arm],(1,0,0,0),(1,0,0,0),arm.snapshot)
+            self.assert_store(arm_ddata[arm],(expected_local_reads,0,0,0),arm.local)
+            self.assert_store(arm_ddata[arm],(1,0,0,0),arm.api)
+            self.assert_store(arm_ddata[arm],(1,0,0,0),arm.snapshot)
             arm_ddata[arm] = arm.api.ddata
 
 

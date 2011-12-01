@@ -1,7 +1,9 @@
+from . import Error
+from . import logging_helper
 from sanetime import sanetime
-from cynq.error import Error
-from cynq import logging_helper
 from traceback import format_exc
+
+#TODO: add extra caching level for local so we don't have to get all rows constantly (we'd need a surface cache focused ona specific spec, but underneath the raw list... should be pretty easy)
 
 class Controller(object):
     def __init__(self, *arms):
@@ -16,7 +18,7 @@ class Controller(object):
         try:
             self._cynq_apis()
             self._cynq_local()
-            if len(self.cynqable_arms)>=2: self._cynq_apis()  # only needed if we still got 2 or more hooked up
+            if len(self.cynqable_arms)>1: self._cynq_apis()  # only needed if we still got 2 or more hooked up
             self._cynq_snapshot()
         except StandardError as err:
             self.log.error("giving up on entire cynq | err=%s" % format_exc(err))
@@ -26,6 +28,7 @@ class Controller(object):
     def _cynq_apis(self):
         for arm in list(self.cynqable_arms):
             try:
+                if len(self.cynqable_arms)>1: arm.local._clear_cache()
                 arm._cynq_api()
             except StandardError as err:
                 self.log.error("bailing on an arm cynq that threw up an exception during api cynq: err=%s" % format_exc(err))
@@ -35,6 +38,7 @@ class Controller(object):
     def _cynq_local(self):
         for arm in list(self.cynqable_arms):
             try:
+                if len(self.cynqable_arms)>1: arm.local._clear_cache()
                 arm._cynq_local()
             except StandardError as err:
                 self.log.error("bailing on an arm cynq that threw up an exception during snapshot cynq: err=%s" % format_exc(err))
@@ -44,6 +48,7 @@ class Controller(object):
     def _cynq_snapshot(self):
         for arm in list(self.cynqable_arms):
             try:
+                if len(self.cynqable_arms)>1: arm.local._clear_cache()
                 arm._cynq_snapshot()
             except StandardError as err:
                 self.log.error("bailing on an arm cynq that threw up an exception during snapshot cynq: err=%s" % format_exc(err))

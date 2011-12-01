@@ -1,5 +1,5 @@
-from cynq.error import Error,StoreError
-from cynq import logging_helper
+from .. import Error,StoreError
+from .. import logging_helper
 from traceback import format_exc
 
 #TODO: factor out spec and arm from each other (spec can be owned by stores, and arms own stores)
@@ -100,13 +100,19 @@ class BaseStore(object):
 
 
     #private methods
-    def __init__(self, spec):
+    def __init__(self):
         super(BaseStore, self).__init__()
-        self.arm, self.type_ = None,None # will get set by owning arm during cynq setup
-        self.spec = spec
-        self.key = spec.key
+        self.arm, self.type_, self.spec = None,None,None # will get set by owning arm during cynq setup
         self._clear_cache()
         self.changes = [0,0,0,0,0,0] #success/fails for create/update/delete
+
+    def with_arm(self, arm, type_):
+        self.arm = arm
+        self.type_ = type_
+        self.spec = arm.spec
+        self.key = self.spec.key
+        self.log = logging_helper.get_log('cynq.store.%s.%s'% (self.type_, self.spec.name))
+        return self
 
     def _single_created(self, obj, dobj):
         self.changes[0] += 1
@@ -164,10 +170,6 @@ class BaseStore(object):
         if fails > int(attempts/float(attempts)**0.5+1):
             raise StoreError("Too many failures on this store for this cynq | store=%s | changes=%s"%(self, self.changes))
 
-    def set_arm(self, arm, type_):
-        self.arm = arm
-        self.type_ = type_
-        self.log = logging_helper.get_log('cynq.store.%s.%s'% (self.type_, self.spec.name))
 
 
 

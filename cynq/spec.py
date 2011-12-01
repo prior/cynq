@@ -1,4 +1,4 @@
-from cynq.error import Error
+from . import Error
 
 #important! do not expect these to change during execution!  need to get that in the docs (if you do change them those changes likey won't be honored)
  
@@ -6,7 +6,7 @@ from cynq.error import Error
 
 ATTR_COMPONENTS = ('rpushed', 'rpulled', 'shared')
 
-class Spec(object):
+class BaseSpec(object):
     name = None
 
     # overrideable specs
@@ -17,7 +17,7 @@ class Spec(object):
 
     # private methods
     def __init__(self):
-        super(Spec,self).__init__()
+        super(BaseSpec,self).__init__()
         for conf in ATTR_COMPONENTS:
             setattr(self, conf, set(getattr(self.__class__, conf, ())))
         self.key = self.__class__.key
