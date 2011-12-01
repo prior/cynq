@@ -1,5 +1,6 @@
 import unittest2
 from copy import deepcopy
+import logger; logger.setup()
 #from pprint import pprint
 
 class TestCase(unittest2.TestCase):

@@ -45,18 +45,18 @@ class VoodooStore(BaseStore):
 
     def _single_create(self, dobj):
         self._pre(create=dobj)
-        if not dobj.has_key(self.key): dobj[self.key] = self.keygen(dobj)
+        if dobj.get(self.key) is None: dobj[self.key] = self.keygen(dobj)
         obj = self._dobj_convert(dobj)
         self.data.append(obj)
         self.obj_hash[dobj[self.key]] = obj
         self._post(create=self._obj_convert(obj))
         return obj
 
-    def _single_update(self, key, dchanges, keyless_obj=None): 
-        obj = key and self.obj_hash[key] or keyless_obj
+    def _single_update(self, key, obj, dchanges):
         self._pre(update=self._obj_convert(obj))
         for k,v in dchanges.iteritems():
             setattr(obj,k,v)
+        if not key: self.obj_hash[getattr(obj,self.key)] = obj
         self._post(update=self._obj_convert(obj))
         return obj
 

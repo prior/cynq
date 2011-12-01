@@ -5,6 +5,7 @@ from cynq.spec import Spec
 from cynq.arm import Arm
 #from pprint import pprint
 
+
 class TestSpec(Spec):
     name = 'test'
     rpushed = ('push',)
@@ -182,11 +183,19 @@ class FullTestCase(TestCase):
     def test_snapshot_recovery(self):
         seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
         self.local.ddata = seeds
-        self.snapshot1.ddata = []
         expected = [{'key':1, 'push':2, 'pull':3, 'share':4}]
         self.api1.ddata = expected
         cynq = Controller(self.arm1).cynq()
         self.assert_store(expected,(1,0,0,0),self.local)
+        self.assert_store(expected,(1,0,0,0),self.api1)
+        self.assert_store(expected,(1,1,0,0),self.snapshot1)
+        self.assert_no_changes_on_another_cynq(cynq)
+
+    def test_initial_setup(self):
+        expected = [{'key':1, 'push':2, 'pull':3, 'share':4}]
+        self.api1.ddata = expected
+        cynq = Controller(self.arm1).cynq()
+        self.assert_store(expected,(1,1,0,0),self.local)
         self.assert_store(expected,(1,0,0,0),self.api1)
         self.assert_store(expected,(1,1,0,0),self.snapshot1)
         self.assert_no_changes_on_another_cynq(cynq)
@@ -216,14 +225,9 @@ class FullTestCase(TestCase):
         snapshot = VoodooStore(spec)
         arm = Arm(api, local, snapshot)
         local.ddata = [{'pull':3, 'share':4}]
-        print "HELKJSLDKJFLSDKJF"
-        print local.ddata
         expected = [{'key':9, 'pull':3, 'share':4}]
         cynq = Controller(arm).cynq()
-        print "HELKJSLDKJFLSDKJF"
-        print local.ddata
-        local.ddata = [{'push':2, 'pull':3, 'share':4}]
-        self.assert_store(expected,(1,0,0,0),local)
+        self.assert_store(expected,(1,0,1,0),local)
         self.assert_store(expected,(1,1,0,0),api)
         self.assert_store(expected,(1,1,0,0),snapshot)
         self.assert_no_changes_on_another_cynq(cynq)
