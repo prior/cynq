@@ -7,6 +7,7 @@ class VoodooStoreObject(object): pass
 class VoodooStore(BaseStore):
     def __init__(self, *args, **kwargs):
         self.keygen = kwargs.pop('keygen', (lambda dobj: str(uuid4())[0:8]))
+        self.pushgen = kwargs.pop('pushgen', (lambda dobj: str(uuid4())[0:8]))
         self.pre_fail = kwargs.pop('pre_fail', (lambda obj,op,tries: False))
         self.post_fail = kwargs.pop('post_fail', (lambda obj,op,tries: False))
         super(VoodooStore, self).__init__(*args, **kwargs)
@@ -45,6 +46,8 @@ class VoodooStore(BaseStore):
     def _single_create(self, dobj):
         self._pre(create=dobj)
         if dobj.get(self.key) is None: dobj[self.key] = self.keygen(dobj)
+        for attr in self.spec.attrs_without_key:
+            if not dobj.get(attr): dobj[attr] = self.pushgen(dobj)
         obj = self._dobj_convert(dobj)
         self.data.append(obj)
         self.obj_hash[dobj[self.key]] = obj

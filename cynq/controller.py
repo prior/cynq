@@ -18,7 +18,8 @@ class Controller(object):
         try:
             self._cynq_apis()
             self._cynq_local()
-            if len(self.cynqable_arms)>1: self._cynq_apis()  # only needed if we still got 2 or more hooked up
+            self._cynq_apis()
+            self._cynq_local()
             self._cynq_snapshot()
         except StandardError as err:
             self.log.error("giving up on entire cynq | err=%s" % format_exc(err))

@@ -86,8 +86,6 @@ class BaseStore(object):
             self._single_delete_fail(key, err)
 
     def apply_changeset(self, changeset):
-        if self.type_ == 'remote' and self.spec.rpushed:
-            changeset.filter_attributes(self.spec.rpushed)
         self.bulk_create(changeset.creates.values())
         self.bulk_update((t[0],self.hash_[t[0]],t[1]) for t in changeset.updates.iteritems())
         self.bulk_delete(changeset.deletes)
