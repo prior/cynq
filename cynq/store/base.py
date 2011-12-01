@@ -10,12 +10,12 @@ class BaseStore(object):
     
     # you can choose to implement just the bulk ones or just the single ones-- not really a need to implement both
     def _bulk_create(self, dobjs): raise NotImplementedError() # return dobj,obj tuples (obj is None on failure)    exceptions unnecessary(will get picked up in failures) 
-    def _bulk_update(self, update_tuples): raise NotImplementedError()  # return key,obj,djchanges tuples (obj is None on failure) (update_tuple=(key, dchanges))    exceptions unnecessary(will get picked up in failures) 
+    def _bulk_update(self, update_tuples): raise NotImplementedError()  # return key,obj,djchanges tuples (obj is None on failure) (update_tuple=(key, dchanges, keyless_obj(optional)))    exceptions unnecessary(will get picked up in failures) 
     def _bulk_delete(self, keys): raise NotImplementedError() # return key,obj tuples (obj is None on failure)    exceptions unnecessary(will get picked up in failures) 
 
     def _single_create(self, dobj): raise NotImplementedError()  # returns new obj   throws exception on error
-    def _single_update(self, key, dchanges): raise NotImplementedError()  # returns obj with changes  throws excption on error
-    def _single_delete(self, key): raise NotImplementedError()  # returns obj if   throws exception on error
+    def _single_update(self, obj, dchanges): raise NotImplementedError()  # returns obj with changes  throws excption on error   # only need to implement keyless ability on keyless stores
+    def _single_delete(self, obj): raise NotImplementedError()  # returns obj if   throws exception on error
 
     def _pre_cynq(self): return True
     def _post_cynq(self): return True
@@ -28,27 +28,18 @@ class BaseStore(object):
     # public methods
     def bulk_create(self, dobjs):
         if not self._createable(): return # avoid error reporting since this is on purpose
-        print "BULK_CREATE (LEN=%s)" %len(dobjs)
-        print "dobjs = %s" % dobjs
-        print "ddata = %s" % self.ddata
         try:
             for dobj,obj in self._bulk_create(dobjs):
                 if obj: self._single_created(obj, dobj)
                 else: self._single_create_fail(dobj)
         except NotImplementedError:
-            print "NOT IMPLEMENTED -- DROPPING TO SINGLE CREATE"
-            print "ddata = %s" % self.ddata
             for dobj in dobjs:
                 self.single_create(dobj)
 
     def single_create(self, dobj):
-        print "SINGLE CREATE  ddata=%s"% self.ddata
         try:
-            print "BEFORE _SINGLE_CREATE ddata=%s" % self.ddata
             obj = self._single_create(dobj)
-            print "BETWEEn _SINGLE_CREATE ddata=%s" % self.ddata
             self._single_created(obj, dobj)
-            print "AFTER _SINGLE_CREATE ddata=%s" % self.ddata
         except NotImplementedError:
             raise Error("You need to implement either the _single_create or the _bulk_create")
         except StandardError as err:
@@ -65,14 +56,15 @@ class BaseStore(object):
             for key,dchanges in tuples:
                 self.single_update(key, dchanges)
 
-    def single_update(self, key, dchanges):
+    def single_update(self, key, dchanges, keyless_obj=None):
         try:
-            self._single_update(key, dchanges)
+            obj = self._single_update(key, dchanges, keyless_obj)
+            if not key and keyless_obj: key = getattr(obj,self.key)
             self._single_updated(key, dchanges)
         except NotImplementedError:
             raise Error("You need to implement either the _single_update or the _bulk_update")
         except StandardError as err:
-            self._single_update_fail(key, dchanges, err)
+            self._single_update_fail(key, dchanges, keyless_obj, err)
 
     def bulk_delete(self, keys):
         if not self._deleteable(): return # avoid error reporting since this is on purpose
@@ -102,7 +94,7 @@ class BaseStore(object):
     def generate_update_trigger(self, obj):
         def trigger(new_key_value):
             setattr(obj, self.key, new_key_value)
-            if self.bulk_update((obj, {self.key : new_key_value})):
+            if self.bulk_update((new_key_value, {self.key : new_key_value})):
                 self.hash_[new_key_value] = obj
         return trigger
 
@@ -117,19 +109,11 @@ class BaseStore(object):
         self.changes = [0,0,0,0,0,0] #success/fails for create/update/delete
 
     def _single_created(self, obj, dobj):
-        print "1 _SINGLE_CREATE ddata=%s" % self.ddata
         self.changes[0] += 1
-        print "2 _SINGLE_CREATE ddata=%s" % self.ddata
         self.log.debug('create | key=%s | dobj=%s | obj=%s' % (getattr(obj,self.key), dobj, obj))
-        print "3 _SINGLE_CREATE ddata=%s" % self.ddata
-        print id(self._list)
-        print id(self.data)
         self.list_.append(obj)
-        print "4 _SINGLE_CREATE ddata=%s" % self.ddata
         self.hash_[getattr(obj,self.key)] = obj
-        print "5 _SINGLE_CREATE ddata=%s" % self.ddata
         if dobj.get('_keyless_update_trigger'): dobj['_keyless_update_trigger'](getattr(obj, self.key))
-        print "6 _SINGLE_CREATE ddata=%s" % self.ddata
 
     def _single_updated(self, key, dchanges):
         self.changes[2] += 1
@@ -146,9 +130,9 @@ class BaseStore(object):
         self.log.error('create failure | dobj=%s | err=%s' % (dobj, format_exc(err)))
         self._excessive_failure_check()
 
-    def _single_update_fail(self, obj, dchanges, err=None):
+    def _single_update_fail(self, key, dchanges, keyless_obj=None, err=None):
         self.changes[3] += 1
-        self.log.error('update failure | dchanges=%s | obj=%s | err=%s' % (dchanges, obj, format_exc(err)))
+        self.log.error('update failure | dchanges=%s | key=%s | keyless_obj=%s | err=%s' % (dchanges, key, keyless_obj, format_exc(err)))
         self._excessive_failure_check()
 
     def _single_delete_fail(self, key, err=None):

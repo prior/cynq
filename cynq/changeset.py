@@ -74,47 +74,13 @@ class ChangeSet(object):
         # change updates or remove if complete duplicate
         for k in set(self.updates) & set(changeset.updates):
             for attr in self.attrs:
-                if self.updates[k].has(attr) and changeset.updates[k].has(attr) and self.updates[k][attr]==changeset.updates[k][attr]:
+                if self.updates[k].has_key(attr) and changeset.updates[k].has_key(attr) and self.updates[k][attr]==changeset.updates[k][attr]:
                     del self.updates[k][attr]
             if not self.updates[k]: del self.updates[k] # remove if nothing left to change
 
         # sanity checks:
         if set(self.creates) & set(self.updates) & self.deletes: raise Error("This should never happen!")
         return self
-
-
-
-class DjangoCacheStore(object):
-    def __init__(self):
-        super(Store,self).__init__()
-
-
-class Controller(object):
-    def __init__(self, local, remotes):
-        super(Controller,self).__init__()
-        self.local = local
-        self.remotes = remotes
-
-    def cynq(self):
-        started_at = sanetime()
-
-    def _pre_cynq(self, started_at):
-        if not self.local.spec.pre_cynq(started_at):
-            self.log.warn("pre-cynq hook on local store prevented cynq execution %s" % self.local_store)
-            return False
-        remote_stores_to_sync = []
-        for rs in self.remote_stores:
-            if rs.spec.pre_cynq(cynq_started_at):
-                remote_stores_to_sync.append(rs)
-            else:
-                self.log.warn("pre-cynq hook on remote store prevented it from being included in cynq (rs:%s)" % rs)
-        if not remote_stores_to_sync:
-            self.log.warn("all remote stores were excluded by pre-cynq hooks, so no cynq happening")
-            return False
-        return remote_stores_to_sync
-
-    
-
 
 
 

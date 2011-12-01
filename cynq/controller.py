@@ -16,6 +16,7 @@ class Controller(object):
         try:
             self._cynq_apis()
             self._cynq_local()
+            if len(self.cynqable_arms)>=2: self._cynq_apis()  # only needed if we still got 2 or more hooked up
             self._cynq_snapshot()
         except StandardError as err:
             self.log.error("giving up on entire cynq | err=%s" % format_exc(err))
@@ -23,7 +24,7 @@ class Controller(object):
         return self
 
     def _cynq_apis(self):
-        for arm in self.cynqable_arms:
+        for arm in list(self.cynqable_arms):
             try:
                 arm._cynq_api()
             except StandardError as err:
@@ -32,7 +33,7 @@ class Controller(object):
                 if not self.cynqable_arms: raise Error("no more arms left")
 
     def _cynq_local(self):
-        for arm in self.cynqable_arms:
+        for arm in list(self.cynqable_arms):
             try:
                 arm._cynq_local()
             except StandardError as err:
@@ -41,7 +42,7 @@ class Controller(object):
                 if not self.cynqable_arms: raise Error("no more arms left")
 
     def _cynq_snapshot(self):
-        for arm in self.cynqable_arms:
+        for arm in list(self.cynqable_arms):
             try:
                 arm._cynq_snapshot()
             except StandardError as err:

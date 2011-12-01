@@ -31,10 +31,7 @@ class Spec(object):
 
     def _assert_valid_spec(self):
         individual_sum = sum(len(getattr(self,conf)) for conf in ATTR_COMPONENTS)
-        print individual_sum
         set_sum = len(self.attrs)
-        print self.attrs
-        print set_sum
         if individual_sum != set_sum:
             raise Error("Spec doesn't make sense -- there is overlap in the attrs")
         if self.key and self.key not in self.attrs:

@@ -1,6 +1,6 @@
 from uuid import uuid4
-from . import logging_helper
-from store import BaseStore
+from .. import logging_helper
+from . import BaseStore
 
 class VoodooStoreObject(object): pass
 
@@ -13,9 +13,7 @@ class VoodooStore(BaseStore):
         super(VoodooStore, self).__init__(*args, **kwargs)
         self.data = self._dlist_convert(dseeds)
         self._obj_hash = None
-        self.pre_ops = {}; self.post_ops = {}
-        for op in ('read','create','update','delete'):
-            self.pre_ops[op] = [];  self.post_ops[op] = []
+        self._clear_stats()
         self.log = logging_helper.get_log('cynq.store.memory')
     
     def _dlist_convert(self, dobjs):
@@ -54,17 +52,17 @@ class VoodooStore(BaseStore):
         self._post(create=self._obj_convert(obj))
         return obj
 
-    def _single_update(self, key, dchanges):
-        obj = self.obj_hash[key]
+    def _single_update(self, key, dchanges, keyless_obj=None): 
+        obj = key and self.obj_hash[key] or keyless_obj
         self._pre(update=self._obj_convert(obj))
         for k,v in dchanges.iteritems():
             setattr(obj,k,v)
-        self._post(delete=self._obj_convert(obj))
+        self._post(update=self._obj_convert(obj))
         return obj
 
     def _single_delete(self, key):
         obj = self.obj_hash[key]
-        self._pre(update=self._obj_convert(obj))
+        self._pre(delete=self._obj_convert(obj))
         self.data.remove(obj)
         del self.obj_hash[key]
         self._post(delete=self._obj_convert(obj))
@@ -96,7 +94,8 @@ class VoodooStore(BaseStore):
         return (self.pre_stats, self.post_stats)
     stats = property(_get_stats)
 
-    def clear_stats(self):
+    def _clear_stats(self):
+        self.pre_ops={}; self.post_ops={}
         for op in ['read','create','update','delete']:
             self.pre_ops[op] = []
             self.post_ops[op] = []
