@@ -10,6 +10,14 @@ class VoodooStore(BaseStore):
         self.pushgen = kwargs.pop('pushgen', (lambda dobj: str(uuid4())[0:8]))
         self.pre_fail = kwargs.pop('pre_fail', (lambda obj,op,tries: False))
         self.post_fail = kwargs.pop('post_fail', (lambda obj,op,tries: False))
+        spec = kwargs.pop('spec', None)
+        if spec: 
+            kwargs['attrs'] = set(list(spec.rpushed) + list(spec.rpulled) + list(spec.shared))
+            kwargs['key'] = spec.key
+            kwargs['push_attrs'] = spec.rpushed
+        self.attrs = kwargs.pop('attrs', [])
+        self.key = kwargs.pop('key')
+        self.push_attrs = kwargs.pop('push_attrs',[])
         super(VoodooStore, self).__init__(*args, **kwargs)
         self.data = []
         self._obj_hash = None
@@ -21,12 +29,12 @@ class VoodooStore(BaseStore):
 
     def _dobj_convert(self, dobj):
         obj = VoodooStoreObject()
-        for attr in self.spec.attrs_with_key:
+        for attr in self.attrs:
             if dobj.has_key(attr): setattr(obj, attr, dobj.get(attr))
         return obj
 
     def _obj_convert(self, obj):
-        return dict((attr,getattr(obj,attr)) for attr in self.spec.attrs_with_key if hasattr(obj,attr))
+        return dict((attr,getattr(obj,attr)) for attr in self.attrs if hasattr(obj,attr))
     
     def _olist_convert(self, objs):
         return [self._obj_convert(obj) for obj in objs]
@@ -46,27 +54,28 @@ class VoodooStore(BaseStore):
     def _single_create(self, dobj):
         self._pre(create=dobj)
         if dobj.get(self.key) is None: dobj[self.key] = self.keygen(dobj)
-        for attr in self.spec.attrs_without_key:
+        for attr in self.push_attrs:
             if not dobj.get(attr): dobj[attr] = self.pushgen(dobj)
+        for attr in self.attrs:
+            if not dobj.has_key(attr): dobj[attr] = None
         obj = self._dobj_convert(dobj)
         self.data.append(obj)
         self.obj_hash[dobj[self.key]] = obj
         self._post(create=self._obj_convert(obj))
         return obj
 
-    def _single_update(self, key, obj, dchanges):
+    def _single_update(self, obj, dchanges):
         self._pre(update=self._obj_convert(obj))
         for k,v in dchanges.iteritems():
             setattr(obj,k,v)
-        if not key: self.obj_hash[getattr(obj,self.key)] = obj
+        self.obj_hash[getattr(obj,self.key)] = obj
         self._post(update=self._obj_convert(obj))
         return obj
 
-    def _single_delete(self, key):
-        obj = self.obj_hash[key]
+    def _single_delete(self, obj):
         self._pre(delete=self._obj_convert(obj))
         self.data.remove(obj)
-        del self.obj_hash[key]
+        if getattr(obj, self.key) in self.obj_hash: del self.obj_hash[getattr(obj, self.key)]
         self._post(delete=self._obj_convert(obj))
         return obj
 

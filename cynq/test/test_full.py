@@ -26,13 +26,13 @@ class FullTestCase(TestCase):
     def setUp(self):
         spec1 = TestSpec1()
         spec2 = TestSpec2()
-        self.local = VoodooStore(pushgen=lambda dobj: 10)
+        self.local = VoodooStore(attrs=['push1','push2','pull','key','share','id'], key='id', push_attrs=['pull'], keygen=lambda dobj: 9, pushgen=lambda dobj: 10)
         self.local1 = FacetStore(self.local)
-        self.api1 = VoodooStore(pushgen=lambda dobj: 11)
-        self.snapshot1 = VoodooStore()
+        self.api1 = VoodooStore(spec=spec1, pushgen=lambda dobj: 11)
+        self.snapshot1 = VoodooStore(spec=spec1)
         self.local2 = FacetStore(self.local)
-        self.api2 = VoodooStore(pushgen=lambda dobj: 12)
-        self.snapshot2 = VoodooStore()
+        self.api2 = VoodooStore(spec=spec2, pushgen=lambda dobj: 12)
+        self.snapshot2 = VoodooStore(spec=spec2)
         self.arm1 = Arm(spec1, self.api1,self.local1,self.snapshot1)
         self.arm2 = Arm(spec2, self.api2,self.local2,self.snapshot2)
 
@@ -40,49 +40,53 @@ class FullTestCase(TestCase):
         pass
 
     def test_one_arm_remote_create(self):
-        expected = [{'key':1, 'push1':2, 'pull':10, 'share':4}]
-        self.api1.ddata = [{'key':1, 'push1':2, 'pull':3, 'share':4}]
+        self.api1.ddata = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
+        expectedL = [{'id':9, 'key':1, 'share':4, 'pull':10, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':4, 'pull':10, 'push1':2}]
         cynq = Controller(self.arm1).cynq()
-        self.assert_store(expected,(1,1,0,0),self.local1)
-        self.assert_store(expected,(1,0,1,0),self.api1)
-        self.assert_store(expected,(1,1,0,0),self.snapshot1)
+        self.assert_store(expectedL,(1,1,0,0),self.local)
+        self.assert_store(expected1,(1,0,1,0),self.api1)
+        self.assert_store(expected1,(1,1,0,0),self.snapshot1)
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_two_arm_remote_create(self):
-        expected1 = [{'key':1, 'push1':2, 'pull':10, 'share':4}]
-        expected2 = [{'key':1, 'push2':12, 'pull':10, 'share':4}]
-        self.api1.ddata = [{'key':1, 'push1':2, 'pull':3, 'share':4}]
+        self.api1.ddata = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
+        expectedL = [{'id':9, 'key':1, 'share':4, 'pull':10, 'push1':2, 'push2':12}]
+        expected1 = [{'key':1, 'share':4, 'pull':10, 'push1':2}]
+        expected2 = [{'key':1, 'share':4, 'pull':10, 'push2':12}]
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected1,(4,1,0,0),self.local1)
+        self.assert_store(expectedL,(1,1,1,0),self.local)
         self.assert_store(expected1,(1,0,1,0),self.api1)
         self.assert_store(expected1,(1,1,0,0),self.snapshot1)
-        self.assert_store(expected2,(4,0,1,0),self.local2)
         self.assert_store(expected2,(1,1,0,0),self.api2)
         self.assert_store(expected2,(1,1,0,0),self.snapshot2)
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_one_arm_local_create(self):
-        expected = [{'key':1, 'push':11, 'pull':3, 'share':4}]
-        self.local.ddata = [{'key':1, 'push':2, 'pull':3, 'share':4}]
+        self.local.ddata = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
+        expectedL = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':11, 'push2':None}]
+        expected1 = [{'key':1, 'share':4, 'pull':3, 'push1':11}]
         cynq = Controller(self.arm1).cynq()
-        self.assert_store(expected,(1,0,1,0),self.local)
-        self.assert_store(expected,(1,1,0,0),self.api1)
-        self.assert_store(expected,(1,1,0,0),self.snapshot1)
+        self.assert_store(expectedL,(1,0,1,0),self.local)
+        self.assert_store(expected1,(1,1,0,0),self.api1)
+        self.assert_store(expected1,(1,1,0,0),self.snapshot1)
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_two_arm_local_create(self):
-        expected = [{'key':1, 'push':2, 'pull':3, 'share':4}]
-        self.local.ddata = expected
+        self.local.ddata = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
+        expectedL = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':11, 'push2':12}]
+        expected1 = [{'key':1, 'share':4, 'pull':3, 'push1':11}]
+        expected2 = [{'key':1, 'share':4, 'pull':3, 'push2':12}]
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected,(6,0,0,0),self.local)
-        self.assert_store(expected,(1,1,0,0),self.api1)
-        self.assert_store(expected,(1,1,0,0),self.snapshot1)
-        self.assert_store(expected,(1,1,0,0),self.api2)
-        self.assert_store(expected,(1,1,0,0),self.snapshot2)
+        self.assert_store(expectedL,(1,0,2,0),self.local)
+        self.assert_store(expected1,(1,1,0,0),self.api1)
+        self.assert_store(expected1,(1,1,0,0),self.snapshot1)
+        self.assert_store(expected2,(1,1,0,0),self.api2)
+        self.assert_store(expected2,(1,1,0,0),self.snapshot2)
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_one_arm_local_delete(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
+        seeds = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
         self.api1.ddata = seeds
         self.snapshot1.ddata = seeds
         expected = []
@@ -93,14 +97,14 @@ class FullTestCase(TestCase):
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_two_arm_local_delete(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
+        seeds = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
         self.api1.ddata = seeds
         self.snapshot1.ddata = seeds
         self.api2.ddata = seeds
         self.snapshot2.ddata = seeds
         expected = []
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected,(6,0,0,0),self.local)
+        self.assert_store(expected,(1,0,0,0),self.local)
         self.assert_store(expected,(1,0,0,1),self.api1)
         self.assert_store(expected,(1,0,0,1),self.snapshot1)
         self.assert_store(expected,(1,0,0,1),self.api2)
@@ -108,9 +112,8 @@ class FullTestCase(TestCase):
         self.assert_no_changes_on_another_cynq(cynq)
         
     def test_one_arm_remote_delete(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
-        self.local.ddata = seeds
-        self.snapshot1.ddata = seeds
+        self.local.ddata = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
+        self.snapshot1.ddata = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
         expected = []
         cynq = Controller(self.arm1).cynq()
         self.assert_store(expected,(1,0,0,1),self.local)
@@ -119,14 +122,14 @@ class FullTestCase(TestCase):
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_two_arm_remote_delete(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
-        self.local.ddata = seeds
+        self.local.ddata = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
+        seeds = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
         self.snapshot1.ddata = seeds
         self.snapshot2.ddata = seeds
         self.api2.ddata = seeds
         expected = []
         cynq = Controller(self.arm1, self.arm2).cynq()
-        self.assert_store(expected,(6,0,0,1),self.local)
+        self.assert_store(expected,(1,0,0,1),self.local)
         self.assert_store(expected,(1,0,0,0),self.api1)
         self.assert_store(expected,(1,0,0,1),self.snapshot1)
         self.assert_store(expected,(1,0,0,1),self.api2)
@@ -134,62 +137,69 @@ class FullTestCase(TestCase):
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_one_arm_local_update(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
+        self.local.ddata = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        seeds = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
         self.api1.ddata = seeds
         self.snapshot1.ddata = seeds
-        expected = [{'key':1, 'push':2, 'pull':3, 'share':5}]
-        self.local.ddata = expected
+        expectedL = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
         cynq = Controller(self.arm1).cynq()
-        self.assert_store(expected,(1,0,0,0),self.local)
-        self.assert_store(expected,(1,0,1,0),self.api1)
-        self.assert_store(expected,(1,0,1,0),self.snapshot1)
+        self.assert_store(expectedL,(1,0,0,0),self.local)
+        self.assert_store(expected1,(1,0,1,0),self.api1)
+        self.assert_store(expected1,(1,0,1,0),self.snapshot1)
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_two_arm_local_update(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
-        self.api1.ddata = seeds
-        self.snapshot1.ddata = seeds
-        self.api2.ddata = seeds
-        self.snapshot2.ddata = seeds
-        expected = [{'key':1, 'push':2, 'pull':3, 'share':5}]
-        self.local.ddata = expected
+        seeds1 = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
+        seeds2 = [{'key':1, 'share':4, 'pull':3, 'push2':None}]
+        self.api1.ddata = seeds1
+        self.snapshot1.ddata = seeds1
+        self.api2.ddata = seeds2
+        self.snapshot2.ddata = seeds2
+        expectedL = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
+        expected2 = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
+        self.local.ddata = expectedL
         cynq = Controller(self.arm1,self.arm2).cynq()
-        self.assert_store(expected,(6,0,0,0),self.local)
-        self.assert_store(expected,(1,0,1,0),self.api1)
-        self.assert_store(expected,(1,0,1,0),self.snapshot1)
-        self.assert_store(expected,(1,0,1,0),self.api2)
-        self.assert_store(expected,(1,0,1,0),self.snapshot2)
+        self.assert_store(expectedL,(1,0,0,0),self.local)
+        self.assert_store(expected1,(1,0,1,0),self.api1)
+        self.assert_store(expected1,(1,0,1,0),self.snapshot1)
+        self.assert_store(expected2,(1,0,1,0),self.api2)
+        self.assert_store(expected2,(1,0,1,0),self.snapshot2)
         self.assert_no_changes_on_another_cynq(cynq)
        
     def test_one_arm_remote_update(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
-        self.local.ddata = seeds
-        self.snapshot1.ddata = seeds
-        expected = [{'key':1, 'push':2, 'pull':3, 'share':5}]
-        self.api1.ddata = expected
+        self.local.ddata = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
+        self.snapshot1.ddata = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
+        expectedL = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
+        self.api1.ddata = expected1
         cynq = Controller(self.arm1).cynq()
-        self.assert_store(expected,(1,0,1,0),self.local)
-        self.assert_store(expected,(1,0,0,0),self.api1)
-        self.assert_store(expected,(1,0,1,0),self.snapshot1)
+        self.assert_store(expectedL,(1,0,1,0),self.local)
+        self.assert_store(expected1,(1,0,0,0),self.api1)
+        self.assert_store(expected1,(1,0,1,0),self.snapshot1)
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_two_arm_remote_update(self):
-        seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
-        self.local.ddata = seeds
-        self.snapshot1.ddata = seeds
-        self.api2.ddata = seeds
-        self.snapshot2.ddata = seeds
-        expected = [{'key':1, 'push':2, 'pull':3, 'share':5}]
-        self.api1.ddata = expected
+        self.local.ddata = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
+        self.snapshot1.ddata = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
+        self.snapshot2.ddata = [{'key':1, 'share':4, 'pull':3, 'push2':None}]
+        self.api1.ddata = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
+        self.api2.ddata = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
+        expectedL = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
+        expected2 = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
         cynq = Controller(self.arm1,self.arm2).cynq()
-        self.assert_store(expected,(6,0,1,0),self.local)
-        self.assert_store(expected,(1,0,0,0),self.api1)
-        self.assert_store(expected,(1,0,1,0),self.snapshot1)
-        self.assert_store(expected,(1,0,1,0),self.api2)
-        self.assert_store(expected,(1,0,1,0),self.snapshot2)
+        self.assert_store(expectedL,(1,0,1,0),self.local)
+        self.assert_store(expected1,(1,0,1,0),self.api1)
+        self.assert_store(expected1,(1,0,1,0),self.snapshot1)
+        self.assert_store(expected2,(1,0,0,0),self.api2)
+        self.assert_store(expected2,(1,0,1,0),self.snapshot2)
         self.assert_no_changes_on_another_cynq(cynq)
 
     def test_snapshot_recovery(self):
+        self.local.ddata = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
+
         seeds = [{'key':1, 'push':2, 'pull':3, 'share':4}]
         self.local.ddata = seeds
         expected = [{'key':1, 'push':2, 'pull':3, 'share':4}]
@@ -244,24 +254,24 @@ class FullTestCase(TestCase):
 
 
     def assert_no_changes_on_another_cynq(self, controller):
+        self.local._clear_cache(); self.local._clear_stats()
         for arm in controller.arms:
             for s in arm.stores:
-                s._clear_stats()
-                s._clear_cache()
+                s._clear_cache();
+                if s != arm.local: s._clear_stats()
 
         # make sure it's all equal to start
         arm_ddata = {}
         for arm in controller.arms:
-            self.assert_equal_dlists(arm.api.ddata,arm.local.ddata)
-            self.assert_equal_dlists(arm.api.ddata,arm.snapshot.ddata)
-            self.assert_equal_dlists(arm.local.ddata,arm.snapshot.ddata)  # overkill just in case
+            self.assert_equal_dlists(arm.api.attrs, arm.api.ddata, self.local.ddata)
+            self.assert_equal_dlists(arm.api.attrs, arm.api.ddata, arm.snapshot.ddata)
+            self.assert_equal_dlists(arm.api.attrs, self.local.ddata, arm.snapshot.ddata)  # overkill just in case
             arm_ddata[arm] = arm.api.ddata
 
         controller.cynq()
 
-        expected_local_reads = len(controller.arms)==1 and 1 or len(controller.arms)*4
         for arm in controller.arms:
-            self.assert_store(arm_ddata[arm],(expected_local_reads,0,0,0),arm.local)
+            self.assert_store(arm_ddata[arm],(1,0,0,0),self.local)
             self.assert_store(arm_ddata[arm],(1,0,0,0),arm.api)
             self.assert_store(arm_ddata[arm],(1,0,0,0),arm.snapshot)
             arm_ddata[arm] = arm.api.ddata
@@ -273,5 +283,5 @@ class FullTestCase(TestCase):
         expected_ddata, expected_pre_stats, expected_post_stats, store = args
         self.assertEqual(expected_pre_stats, store.pre_stats)
         self.assertEqual(expected_post_stats, store.post_stats)
-        self.assert_equal_dlists(expected_ddata, store.ddata)
+        self.assert_equal_dlists([], expected_ddata, store.ddata)
 

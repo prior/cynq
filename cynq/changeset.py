@@ -80,12 +80,9 @@ class ChangeSet(object):
             for attr in self.attrs:
                 if self.updates[k].has_key(attr) and changeset.updates[k].has_key(attr):
                     if self.updates[k][attr]==changeset.updates[k][attr]:
-                        print "XXXXX"
-                        print attr
                         del self.updates[k][attr]
 #                    else 
             if not self.updates[k]: 
-                print "XYYYYYYXXXX"
                 del self.updates[k] # remove if nothing left to change
 
         # sanity checks:

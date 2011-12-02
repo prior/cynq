@@ -18,6 +18,7 @@ class Controller(object):
         try:
             self._cynq_apis()
             self._cynq_local()
+            self._cynq_snapshot()
             self._cynq_apis()
             self._cynq_local()
             self._cynq_snapshot()
