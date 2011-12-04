@@ -16,7 +16,7 @@ class VoodooStore(BaseStore):
             kwargs['key'] = spec.key
             kwargs['push_attrs'] = spec.rpushed
         self.attrs = kwargs.pop('attrs', [])
-        self.key = kwargs.pop('key')
+        self.vkey = kwargs.pop('key')
         self.push_attrs = kwargs.pop('push_attrs',[])
         super(VoodooStore, self).__init__(*args, **kwargs)
         self.data = []
@@ -41,7 +41,7 @@ class VoodooStore(BaseStore):
 
     def _get_obj_hash(self):
         if self._obj_hash is None: 
-            self._obj_hash = dict((getattr(obj,self.key), obj) for obj in self.data if hasattr(obj,self.key))
+            self._obj_hash = dict((getattr(obj,self.vkey), obj) for obj in self.data if hasattr(obj,self.vkey))
         return self._obj_hash
     obj_hash = property(_get_obj_hash)
 
@@ -53,14 +53,14 @@ class VoodooStore(BaseStore):
 
     def _single_create(self, dobj):
         self._pre(create=dobj)
-        if dobj.get(self.key) is None: dobj[self.key] = self.keygen(dobj)
+        if dobj.get(self.vkey) is None: dobj[self.vkey] = self.keygen(dobj)
         for attr in self.push_attrs:
             if not dobj.get(attr): dobj[attr] = self.pushgen(dobj)
         for attr in self.attrs:
             if not dobj.has_key(attr): dobj[attr] = None
         obj = self._dobj_convert(dobj)
         self.data.append(obj)
-        self.obj_hash[dobj[self.key]] = obj
+        self.obj_hash[dobj[self.vkey]] = obj
         self._post(create=self._obj_convert(obj))
         return obj
 
@@ -68,14 +68,14 @@ class VoodooStore(BaseStore):
         self._pre(update=self._obj_convert(obj))
         for k,v in dchanges.iteritems():
             setattr(obj,k,v)
-        self.obj_hash[getattr(obj,self.key)] = obj
+        self.obj_hash[getattr(obj,self.vkey)] = obj
         self._post(update=self._obj_convert(obj))
         return obj
 
     def _single_delete(self, obj):
         self._pre(delete=self._obj_convert(obj))
         self.data.remove(obj)
-        if getattr(obj, self.key) in self.obj_hash: del self.obj_hash[getattr(obj, self.key)]
+        if getattr(obj, self.vkey) in self.obj_hash: del self.obj_hash[getattr(obj, self.vkey)]
         self._post(delete=self._obj_convert(obj))
         return obj
 
@@ -120,5 +120,8 @@ class VoodooStore(BaseStore):
 
     def _build_dseed(self):
         return dict((attr,str(uuid4())[:8]) for attr in self.attrs)
+
+    def _get_backward_translated_ddata(self): return [self._bulk_backward_translate(d) for d in self.ddata]
+    backward_translated_ddata = property(_get_backward_translated_ddata)
 
 
