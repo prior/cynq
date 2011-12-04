@@ -3,8 +3,6 @@ from . import logging_helper
 from sanetime import sanetime
 from traceback import format_exc
 
-#TODO: add extra caching level for local so we don't have to get all rows constantly (we'd need a surface cache focused ona specific spec, but underneath the raw list... should be pretty easy)
-
 class Controller(object):
     def __init__(self, *arms):
         self.arms = arms
@@ -18,7 +16,6 @@ class Controller(object):
         try:
             self._cynq_apis()
             self._cynq_local()
-            self._cynq_snapshot()
             self._cynq_apis()
             self._cynq_local()
             self._cynq_snapshot()

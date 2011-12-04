@@ -2,8 +2,6 @@ from .. import Error,StoreError
 from .. import logging_helper
 from traceback import format_exc
 
-#TODO: factor out spec and arm from each other (spec can be owned by stores, and arms own stores)
-
 class BaseStore(object):
     # all the methods available to override (but should not be called directly by you ever!)
     def _all(self): raise NotImplementedError()

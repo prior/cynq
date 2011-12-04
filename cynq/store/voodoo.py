@@ -115,12 +115,10 @@ class VoodooStore(BaseStore):
     def _get_ddata(self): return self._olist_convert(self.data)
     ddata = property(_get_ddata, _set_ddata)
 
-    #def seed(self, count):
-        #self.seeds = [self.build_seed() for i in xrange(count)]
-        #self._hash = None
-        #return self.seeds
+    def generate_seeds(self, count):
+        self.ddata = [self._build_dseed() for i in xrange(count)]
 
-    #def build_seed(self):
-        #return dict((attr,str(uuid4())[:4]) for attr in self.attrs)
+    def _build_dseed(self):
+        return dict((attr,str(uuid4())[:8]) for attr in self.attrs)
 
 
