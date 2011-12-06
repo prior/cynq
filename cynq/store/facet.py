@@ -1,10 +1,8 @@
 from . import BaseStore
 
 class FacetStore(BaseStore):
-    # all the methods available to override (but should not be called directly by you ever!)
-    def _all(self): return self.proxy_store.list_
-    
-    # you can choose to implement just the bulk ones or just the single ones-- not really a need to implement both
+    #def _all(self):  # not needed in facet since we're purposefully proxying through (and proxying through the cache as well for the list anyway)
+
     def _bulk_create(self, dobjs): return self.proxy_store._bulk_create(dobjs)
     def _bulk_update(self, update_tuples): return self.proxy_store._bulk_update(update_tuples)
     def _bulk_delete(self, objs): return self.proxy_store._bulk_delete(objs)
@@ -24,3 +22,8 @@ class FacetStore(BaseStore):
         super(FacetStore, self).__init__()
         self.proxy_store = proxy_store
 
+    def _get_list(self):
+        if self._list is None:
+            self._list = self.proxy_store.list_
+        return self._list
+    list_ = property(_get_list)

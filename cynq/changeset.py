@@ -62,8 +62,8 @@ class ChangeSet(object):
         # update keys on similar looking keyless creates (this situation could only occur after certain cynq failures (or creation of like objects on both sides within cynq cycle)
         creates_by_hash = dict((self._hash(o),o) for o in changeset.creates.values())
         for h in set(self.keyless_creates) & set(creates_by_hash):
-            dobj = self.keyless_creates[h]
-            dobj['_keyless_update_trigger'](getattr(creates_by_hash[h], self.key))
+            dobj, keyless_trigger = self.keyless_creates[h]
+            keyless_trigger(getattr(creates_by_hash[h], self.key))
             del self.keyless_creates[h]  # no longer needed now
 
         # change updates or remove if complete duplicate

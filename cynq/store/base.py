@@ -10,10 +10,10 @@ class BaseStore(object):
     TRANSLATION = {} # or a hash that has spec attr as a key and this store's specific attr as the value
 
     # all the methods available to override (but should not be called directly by you ever!)
-    def _all(self): raise NotImplementedError()
+    def _all(self): raise NotImplementedError(str(self.__class__))
     
     # you can choose to implement just the bulk ones or just the single ones-- not really a need to implement both
-    def _bulk_create(self, dobjs): raise NotImplementedError() # return obj,dobj tuples (obj is None on failure)    exceptions unnecessary(will get picked up in unsuccesses) 
+    def _bulk_create(self, create_tuples): raise NotImplementedError() # return obj,dobj,keyless_trigger tuples (obj is None on failure) (create_tuple=(dobj,keyless_trigger))    exceptions unnecessary(will get picked up in unsuccesses) 
     def _bulk_update(self, update_tuples): raise NotImplementedError()  # return success,obj,djchanges tuples (update_tuple=(obj, dchanges))    throwing exceptions unnecessary(will get picked up in unsuccesses) 
     def _bulk_delete(self, objs): raise NotImplementedError() # return success,obj tuples    exceptions unnecessary(will get picked up in unsuccesses) 
 
@@ -30,24 +30,24 @@ class BaseStore(object):
 
 
     # public methods
-    def bulk_create(self, dobjs):
+    def bulk_create(self, tuples):
         if not self._createable(): return # avoid error reporting since this is on purpose
         try:
-            for obj,dobj in self._bulk_create(dobjs):
-                if obj: self._single_created(obj, dobj)
-                else: self._single_create_fail(dobj)
+            for obj,dobj,keyless_trigger in self._bulk_create(tuples):
+                if obj: self._single_created(obj, dobj, keyless_trigger)
+                else: self._single_create_fail(dobj, keyless_trigger)
         except NotImplementedError:
-            for dobj in dobjs:
-                self.single_create(dobj)
+            for dobj,keyless_trigger in tuples:
+                self.single_create(dobj, keyless_trigger)
 
-    def single_create(self, dobj):
+    def single_create(self, dobj, keyless_trigger=None):
         try:
             obj = self._single_create(dobj)
-            self._single_created(obj, dobj)
+            self._single_created(obj, dobj, keyless_trigger)
         except NotImplementedError:
             raise Error("You need to implement either the _single_create or the _bulk_create")
         except StandardError as err:
-            self._single_create_fail(dobj, err)
+            self._single_create_fail(dobj, keyless_trigger, err)
 
 
     def bulk_update(self, tuples):
@@ -89,10 +89,10 @@ class BaseStore(object):
             self._single_delete_fail(obj, err)
 
     def apply_changeset(self, changeset):
-        self.bulk_create(self._bulk_translate(v) for v in changeset.creates.values())
+        self.bulk_create((self._bulk_translate(v),None) for v in changeset.creates.values())
         self.bulk_update((self.hash_[self._translate(t[0])],self._bulk_translate(t[1])) for t in changeset.updates.iteritems())
         self.bulk_delete(self.hash_[self._translate(key)] for key in changeset.deletes)
-        self.bulk_create(self._bulk_translate(v) for v in changeset.keyless_creates.values())
+        self.bulk_create((self._bulk_translate(v[0]),v[1]) for v in changeset.keyless_creates.values())
 
     def generate_update_trigger(self, obj):
         def trigger(new_key_value):
@@ -116,12 +116,12 @@ class BaseStore(object):
         self.log = logging_helper.get_log('cynq.store.%s.%s'% (self.type_, self.spec.name))
         return self
 
-    def _single_created(self, obj, dobj):
+    def _single_created(self, obj, dobj, keyless_trigger=None):
         self.changes[0] += 1
-        self.log.debug('create | key=%s | dobj=%s | obj=%s' % (getattr(obj,self._translate(self.key)), dobj, obj))
+        self.log.debug('create | key=%s | dobj=%s | obj=%s | keyless_trigger=%s' % (getattr(obj,self._translate(self.key)), dobj, obj, keyless_trigger))
         self.list_.append(obj)
         self.hash_[getattr(obj,self._translate(self.key))] = obj
-        if dobj.get('_keyless_update_trigger'): dobj['_keyless_update_trigger'](getattr(obj, self._translate(self.key)))
+        if keyless_trigger: keyless_trigger(getattr(obj, self._translate(self.key)))
 
     def _single_updated(self, obj, dchanges):
         self.changes[2] += 1
@@ -134,9 +134,9 @@ class BaseStore(object):
         obj = self.hash_.pop(getattr(obj, self._translate(self.key)))
         self.list_.remove(obj)
 
-    def _single_create_fail(self, dobj, err=None):
+    def _single_create_fail(self, dobj, keyless_trigger=None, err=None):
         self.changes[1] += 1
-        self.log.error('create failure | dobj=%s | err=%s' % (dobj, format_exc(err)))
+        self.log.error('create failure | dobj=%s | keyless_trigger=%s | err=%s' % (dobj, keyless_trigger, format_exc(err)))
         self._excessive_failure_check()
 
     def _single_update_fail(self, obj, dchanges, err=None):
@@ -151,7 +151,7 @@ class BaseStore(object):
 
     def _get_list(self):
         if self._list is None:
-            self._list = self._all()
+            self._list = list(self._all())
         return self._list
     list_ = property(_get_list)
 
@@ -190,10 +190,11 @@ class BaseStore(object):
 
         
     def dscoped(self, obj, spec_attrs, setup_keyless_trigger=False):
+        keyless_trigger = None
         d = dict((a,getattr(obj,self._translate(a),None)) for a in spec_attrs) 
         if setup_keyless_trigger:
-            d['_keyless_update_trigger'] = self.generate_update_trigger(obj)
-        return d
+            keyless_trigger = self.generate_update_trigger(obj)
+        return setup_keyless_trigger and (d, keyless_trigger) or d
 
     def ddiff(self, key_value, spec_attrs, to_store):
         from_obj = self.hash_[key_value]
