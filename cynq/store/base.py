@@ -2,6 +2,7 @@ from .. import Error,StoreError
 from .. import logging_helper
 from copy import deepcopy
 from traceback import format_exc
+from sanetime import sanetime
 
 
 #TODO: add translation abilities!  -- expose a function that can be overridden on each store to translate the spec attribute to the store specific attribute!
@@ -31,6 +32,8 @@ class BaseStore(object):
 
     # public methods
     def bulk_create(self, tuples):
+        if not tuples: return
+        start_time = sanetime()
         if not self._createable(): return # avoid error reporting since this is on purpose
         try:
             for obj,dobj,keyless_trigger in self._bulk_create(tuples):
@@ -39,6 +42,7 @@ class BaseStore(object):
         except NotImplementedError:
             for dobj,keyless_trigger in tuples:
                 self.single_create(dobj, keyless_trigger)
+        self.timings.append(("creates", (sanetime().ms - start_time.ms)/1000.0))
 
     def single_create(self, dobj, keyless_trigger=None):
         try:
@@ -51,6 +55,8 @@ class BaseStore(object):
 
 
     def bulk_update(self, tuples):
+        if not tuples: return
+        start_time = sanetime()
         if not self._updateable(): return  # avoid error reporting since this is on purpose
         try:
             for success,obj,dchanges in self._bulk_update(tuples):
@@ -59,6 +65,7 @@ class BaseStore(object):
         except NotImplementedError:
             for obj,dchanges in tuples:
                 self.single_update(obj, dchanges)
+        self.timings.append(("updates", (sanetime().ms - start_time.ms)/1000.0))
 
     def single_update(self, obj, dchanges):
         try:
@@ -70,6 +77,8 @@ class BaseStore(object):
             self._single_update_fail(obj, dchanges, err)
 
     def bulk_delete(self, objs):
+        if not objs: return
+        start_time = sanetime()
         if not self._deleteable(): return # avoid error reporting since this is on purpose
         try:
             for success,obj in self._bulk_delete(objs):
@@ -78,6 +87,7 @@ class BaseStore(object):
         except NotImplementedError:
             for obj in objs:
                 self.single_delete(obj)
+        self.timings.append(("deletes", (sanetime().ms - start_time.ms)/1000.0))
 
     def single_delete(self, obj):
         try:
@@ -89,10 +99,10 @@ class BaseStore(object):
             self._single_delete_fail(obj, err)
 
     def apply_changeset(self, changeset):
-        self.bulk_create((self._bulk_translate(v),None) for v in changeset.creates.values())
-        self.bulk_update((self.hash_[self._translate(t[0])],self._bulk_translate(t[1])) for t in changeset.updates.iteritems())
-        self.bulk_delete(self.hash_[self._translate(key)] for key in changeset.deletes)
-        self.bulk_create((self._bulk_translate(v[0]),v[1]) for v in changeset.keyless_creates.values())
+        self.bulk_create([(self._bulk_translate(v),None) for v in changeset.creates.values()])
+        self.bulk_update([(self.hash_[self._translate(t[0])],self._bulk_translate(t[1])) for t in changeset.updates.iteritems()])
+        self.bulk_delete([self.hash_[self._translate(key)] for key in changeset.deletes])
+        self.bulk_create([(self._bulk_translate(v[0]),v[1]) for v in changeset.keyless_creates.values()])
 
     def generate_update_trigger(self, obj):
         def trigger(new_key_value):
@@ -106,6 +116,7 @@ class BaseStore(object):
         self.arm, self.type_, self.spec = None,None,None # will get set by owning arm during cynq setup
         self._clear_cache()
         self.changes = [0,0,0,0,0,0] #success/fails for create/update/delete
+        self.timings = []
         self.translation = deepcopy(self.__class__.TRANSLATION)
 
     def with_arm(self, arm, type_):
@@ -151,7 +162,9 @@ class BaseStore(object):
 
     def _get_list(self):
         if self._list is None:
+            start_time = sanetime()
             self._list = list(self._all())
+            self.timings.append(("reads", (sanetime().ms - start_time.ms)/1000.0))
         return self._list
     list_ = property(_get_list)
 
@@ -202,3 +215,6 @@ class BaseStore(object):
         return dict((a,getattr(from_obj,self._translate(a),None)) for a in spec_attrs if getattr(from_obj,self._translate(a),None) != getattr(to_obj,to_store._translate(a),None))
 
 
+    def _get_changes_tstr(self):
+        return "(%s,%s,%s,%s,%s,%s)" % tuple(self.changes)
+    changes_tstr = property(_get_changes_tstr)

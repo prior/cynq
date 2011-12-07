@@ -22,6 +22,8 @@ class Controller(object):
         except StandardError as err:
             self.log.error("giving up on entire cynq | err=%s" % format_exc(err))
         for arm in self.cynqable_arms: arm._post_cynq()
+        self.log.info("completed | %s" % ' | '.join(['%s:[api:%s local:%s snapshot:%s]' % (a.spec.name, a.api.changes_tstr, a.local.changes_tstr, a.snapshot.changes_tstr) for a in self.arms]))
+        self.log.info("timings | %s | total: %.2f" % (' | '.join(['%s.%s:%s:%.2f' % (a.spec.name, s.type_, t[0], t[1]) for a in self.arms for s in a.stores for t in s.timings if t[1] > 0.1]), (sanetime().ms-self.started_at.ms)/1000.0))
         return self
 
     def _cynq_apis(self):

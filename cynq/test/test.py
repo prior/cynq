@@ -288,6 +288,33 @@ class FullTestCase(TestCase):
         self.assert_equal_dlists(self.api1.attrs, expected1, self.api1.ddata)
         self.assert_no_changes_on_another_cynq(cynq)
 
+    def test_falsy_one_arm_local_update_to_none(self):
+        self.local.ddata = [{'id':5, 'key':1, 'share':None, 'pull':3, 'push1':2, 'push2':None}]
+        seeds = [{'key':1, 'share':False, 'pull':3, 'push1':2}]
+        self.api1.ddata = seeds
+        self.snapshot1.ddata = seeds
+        expectedL = [{'id':5, 'key':1, 'share':None, 'pull':3, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':None, 'pull':3, 'push1':2}]
+        cynq = Controller(self.arm1).cynq()
+        self.assert_store(expectedL,(1,0,0,0),self.local)
+        self.assert_store(expected1,(1,0,1,0),self.api1)
+        self.assert_store(expected1,(1,0,1,0),self.snapshot1)
+        self.assert_no_changes_on_another_cynq(cynq)
+
+    def test_falsy_one_arm_local_update_to_false(self):
+        self.local.ddata = [{'id':5, 'key':1, 'share':False, 'pull':3, 'push1':2, 'push2':None}]
+        seeds = [{'key':1, 'share':None, 'pull':3, 'push1':2}]
+        self.api1.ddata = seeds
+        self.snapshot1.ddata = seeds
+        expectedL = [{'id':5, 'key':1, 'share':False, 'pull':3, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':False, 'pull':3, 'push1':2}]
+        cynq = Controller(self.arm1).cynq()
+        self.assert_store(expectedL,(1,0,0,0),self.local)
+        self.assert_store(expected1,(1,0,1,0),self.api1)
+        self.assert_store(expected1,(1,0,1,0),self.snapshot1)
+        self.assert_no_changes_on_another_cynq(cynq)
+
+
 
     def assert_no_changes_on_another_cynq(self, controller, local=None):
         if not local: local = self.local
@@ -312,7 +339,6 @@ class FullTestCase(TestCase):
             self.assert_store(local_ddata,(1,0,0,0),local)
             self.assert_store(arm_ddata[arm],(1,0,0,0),arm.api)
             self.assert_store(arm_ddata[arm],(1,0,0,0),arm.snapshot)
-
 
     def assert_store(self, *args):
         args = list(args)
