@@ -13,6 +13,7 @@ class Controller(object):
         for arm in self.arms: arm.controller = self
         self.cynqable_arms = [arm for arm in self.arms if arm._pre_cynq()]
         if not self.cynqable_arms: return
+        self.starting_arms_count = len(self.cynqable_arms)
         try:
             self._cynq_apis()
             self._cynq_local()
@@ -55,5 +56,9 @@ class Controller(object):
                 self.log.error("bailing on an arm cynq that threw up an exception during snapshot cynq: err=%s" % format_exc(err))
                 self.cynqable_arms.remove(arm)
                 if not self.cynqable_arms: raise Error("no more arms left")
+
+    def _get_complete_success(self):
+        return len(self.cynqable_arms) == len(self.starting_arms_count) and self.started_at
+    complete_success = property(_get_complete_success)
 
 
