@@ -58,7 +58,7 @@ class Controller(object):
                 if not self.cynqable_arms: raise Error("no more arms left")
 
     def _get_complete_success(self):
-        return len(self.cynqable_arms) == len(self.starting_arms_count) and self.started_at
+        return len(self.cynqable_arms) == self.starting_arms_count and self.started_at
     complete_success = property(_get_complete_success)
 
 
