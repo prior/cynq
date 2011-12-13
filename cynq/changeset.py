@@ -1,3 +1,4 @@
+from . import logging_helper
 from cynq.error import Error
 import hashlib
 
@@ -11,6 +12,7 @@ class ChangeSet(object):
         self.updates = updates or {}
         self.deletes = deletes or set()
         self.keyless_creates = keyless_creates or {}
+        self.log = logging_helper.get_log('cynq.changeset')
 
     def __len__(self):
         return sum(len(getattr(self,a)) for a in ['creates','updates','deletes','keyless_creates'])

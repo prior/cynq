@@ -170,7 +170,7 @@ class BaseStore(object):
 
     def _get_hash(self):
         if self._hash is None:
-            self._hash = dict((getattr(o,self._translate(self.key)),o) for o in self.list_ if hasattr(o,self._translate(self.key)))
+            self._hash = dict((getattr(o,self._translate(self.key)),o) for o in self.list_ if getattr(o,self._translate(self.key),None) is not None)
         return self._hash
     hash_ = property(_get_hash)
 

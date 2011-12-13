@@ -18,6 +18,7 @@ class TestSpec2(BaseSpec):
     shared = ('key','share')
     key = 'key'
 
+
 #TODO: test api fail scenarios
 #TODO: test local fail scenarios
 #TODO: test snapshot fail scenarios
@@ -232,7 +233,6 @@ class FullTestCase(TestCase):
         self.assert_store(expected1,(1,0,1,0),self.snapshot1)
         self.assert_no_changes_on_another_cynq(cynq)
 
-
     def test_one_arm_pushkey_local_create(self):
         class PushKeySpec(BaseSpec):
             name = 'pushkey'
@@ -247,6 +247,28 @@ class FullTestCase(TestCase):
         snapshot = VoodooStore(spec=spec)
         arm = Arm(spec, api, local, snapshot)
         local.ddata = [{'id':8, 'share':4, 'pull':3}]
+        expectedL = [{'id':8, 'pull':3, 'share':4, 'key':11}]
+        expectedR = [{'key':11, 'pull':3, 'share':4}]
+        cynq = Controller(arm).cynq()
+        self.assert_store(expectedL,(1,0,1,0),local)
+        self.assert_store(expectedR,(1,1,0,0),api)
+        self.assert_store(expectedR,(1,1,0,0),snapshot)
+        self.assert_no_changes_on_another_cynq(cynq, local)
+
+    def test_one_arm_pushkey_local_create_with_nonekey(self):
+        class PushKeySpec(BaseSpec):
+            name = 'pushkey'
+            rpushed = ('key',)
+            rpulled = ('pull',)
+            shared = ('share',)
+            key = 'key'
+
+        spec = PushKeySpec()
+        local = VoodooStore(attrs=['key','pull','share','id'], key='id', push_attrs=['pull'], keygen=lambda dobj: 9, pushgen=lambda dobj: 10)
+        api = VoodooStore(spec=spec, keygen=lambda dobj: 11)
+        snapshot = VoodooStore(spec=spec)
+        arm = Arm(spec, api, local, snapshot)
+        local.ddata = [{'id':8, 'share':4, 'pull':3, 'key':None}]
         expectedL = [{'id':8, 'pull':3, 'share':4, 'key':11}]
         expectedR = [{'key':11, 'pull':3, 'share':4}]
         cynq = Controller(arm).cynq()
