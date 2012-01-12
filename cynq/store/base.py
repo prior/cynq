@@ -5,8 +5,6 @@ from traceback import format_exc
 from sanetime import sanetime
 
 
-#TODO: add translation abilities!  -- expose a function that can be overridden on each store to translate the spec attribute to the store specific attribute!
-
 class BaseStore(object):
     TRANSLATION = {} # or a hash that has spec attr as a key and this store's specific attr as the value
 
