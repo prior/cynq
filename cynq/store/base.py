@@ -158,6 +158,14 @@ class BaseStore(object):
         self.log.error('delete failure | key=%s | obj=%s | err=%s' % (getattr(obj, self._translate(self.key)), obj, format_exc(err)))
         self._excessive_failure_check()
 
+    def _sanity_check_list(self): # to prevent any doubles
+        key_values = set()
+        for o in self.list_:
+            key_value = getattr(o, self._translate(self.key), None)
+            if key_value in key_values:
+                raise StoreError("list is not unique on key=%s, key_value=%s [obj: %s]" % (self.key, key_value, o.__dict__))
+            if key_value: key_values.add(key_value)
+
     def _get_list(self):
         if self._list is None:
             start_time = sanetime()
@@ -168,6 +176,7 @@ class BaseStore(object):
 
     def _get_hash(self):
         if self._hash is None:
+            self._sanity_check_list()
             self._hash = dict((getattr(o,self._translate(self.key)),o) for o in self.list_ if getattr(o,self._translate(self.key),None) is not None)
         return self._hash
     hash_ = property(_get_hash)

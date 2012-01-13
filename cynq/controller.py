@@ -9,6 +9,7 @@ class Controller(object):
         self.log = logging_helper.get_log('cynq.controller')
 
     def cynq(self):
+        self.errs = []
         self.started_at = sanetime()
         for arm in self.arms: arm.controller = self
         self.cynqable_arms = [arm for arm in self.arms if arm._pre_cynq()]
@@ -25,6 +26,8 @@ class Controller(object):
         for arm in self.cynqable_arms: arm._post_cynq()
         self.log.info("completed | %s" % ' | '.join(['%s:[api:%s local:%s snapshot:%s]' % (a.spec.name, a.api.changes_tstr, a.local.changes_tstr, a.snapshot.changes_tstr) for a in self.arms]))
         self.log.info("timings | %s | total: %.2f" % (' | '.join(['%s.%s:%s:%.2f' % (a.spec.name, s.type_, t[0], t[1]) for a in self.arms for s in a.stores for t in s.timings if t[1] > 0.1]), (sanetime().ms-self.started_at.ms)/1000.0))
+        if self.errs:
+            raise Error(self.errs[0])
         return self
 
     def _cynq_apis(self):
@@ -33,6 +36,7 @@ class Controller(object):
                 if len(self.cynqable_arms)>1: arm.local._clear_cache()
                 arm._cynq_api()
             except StandardError as err:
+                self.errs.append(err)
                 self.log.error("bailing on an arm cynq that threw up an exception during api cynq: err=%s" % format_exc(err))
                 self.cynqable_arms.remove(arm)
                 if not self.cynqable_arms: raise Error("no more arms left")
@@ -43,6 +47,7 @@ class Controller(object):
                 if len(self.cynqable_arms)>1: arm.local._clear_cache()
                 arm._cynq_local()
             except StandardError as err:
+                self.errs.append(err)
                 self.log.error("bailing on an arm cynq that threw up an exception during snapshot cynq: err=%s" % format_exc(err))
                 self.cynqable_arms.remove(arm)
                 if not self.cynqable_arms: raise Error("no more arms left")
@@ -53,6 +58,7 @@ class Controller(object):
                 if len(self.cynqable_arms)>1: arm.local._clear_cache()
                 arm._cynq_snapshot()
             except StandardError as err:
+                self.errs.append(err)
                 self.log.error("bailing on an arm cynq that threw up an exception during snapshot cynq: err=%s" % format_exc(err))
                 self.cynqable_arms.remove(arm)
                 if not self.cynqable_arms: raise Error("no more arms left")

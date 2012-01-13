@@ -17,12 +17,6 @@ class ChangeSet(object):
     def __len__(self):
         return sum(len(getattr(self,a)) for a in ['creates','updates','deletes','keyless_creates'])
 
-    #def copy(self):
-        #kwargs = {'spec':set(self.spec) }
-        #for a in ('creates','updates','deletes','keyless_creates'):
-            #kwargs[a] = deepcopy(getattr(self,a))
-        #return ChangeSet(**kwargs)
-
     def build(self, from_store, to_store, suppress_attrs=None):
         from_keys = set(from_store.hash_)
         to_keys = set(to_store.hash_)

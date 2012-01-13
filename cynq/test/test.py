@@ -1,5 +1,5 @@
 from .helper import TestCase
-from cynq import Controller, VoodooStore, FacetStore, BaseSpec, Arm
+from cynq import Controller, VoodooStore, FacetStore, BaseSpec, Arm, Error
 from .. import logging_helper
 #from pprint import pprint
 
@@ -200,6 +200,32 @@ class FullTestCase(TestCase):
         self.assert_store(expected2,(1,0,1,0),self.snapshot2)
         self.assert_no_changes_on_another_cynq(cynq)
 
+    def test_two_arm_nothing_test(self):
+        self.local.ddata = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        self.snapshot1.ddata = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
+        self.snapshot2.ddata = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
+        self.api1.ddata = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
+        self.api2.ddata = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
+        expectedL = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        expected1 = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
+        expected2 = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
+        cynq = Controller(self.arm1,self.arm2).cynq()
+        self.assert_store(expectedL,(1,0,0,0),self.local)
+        self.assert_store(expected1,(1,0,0,0),self.api1)
+        self.assert_store(expected1,(1,0,0,0),self.snapshot1)
+        self.assert_store(expected2,(1,0,0,0),self.api2)
+        self.assert_store(expected2,(1,0,0,0),self.snapshot2)
+        self.assert_no_changes_on_another_cynq(cynq)
+
+    def test_two_arm_double_test(self):
+        self.local.ddata = [{'id':5, 'key':1, 'share':6, 'pull':3, 'push1':2, 'push2':None}]
+        self.snapshot1.ddata = [{'key':1, 'share':6, 'pull':3, 'push1':2}]
+        self.snapshot2.ddata = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
+        self.api1.ddata = [{'key':1, 'share':6, 'pull':3, 'push1':2}, {'key':1, 'share':6, 'pull':3, 'push1':2} ]
+        self.api2.ddata = [{'key':1, 'share':6, 'pull':3, 'push2':None}]
+        with self.assertRaises(Error):
+            Controller(self.arm1,self.arm2).cynq()
+
     def test_snapshot_recovery(self):
         expectedL = [{'id':5, 'key':1, 'share':4, 'pull':3, 'push1':2, 'push2':None}]
         expected1 = [{'key':1, 'share':4, 'pull':3, 'push1':2}]
@@ -278,6 +304,20 @@ class FullTestCase(TestCase):
         self.assert_no_changes_on_another_cynq(cynq, local)
 
     def test_two_arm_large_cynq(self):
+        self.assertTrue(True)
+        return
+        self.local.generate_seeds(1000)
+        self.api1.generate_seeds(1000)
+        self.api2.generate_seeds(1000)
+        cynq = Controller(self.arm1,self.arm2).cynq()
+        self.log.debug("local changes: %s", self.local.post_stats)
+        self.log.debug("api1 changes: %s", self.api1.post_stats)
+        self.log.debug("api2 changes: %s", self.api2.post_stats)
+        self.log.debug("snapshot1 changes: %s", self.snapshot1.post_stats)
+        self.log.debug("snapshot2 changes: %s", self.snapshot2.post_stats)
+        self.assert_no_changes_on_another_cynq(cynq)
+
+    def test_two_arm_large_cynq_with_duplicate(self):
         self.assertTrue(True)
         return
         self.local.generate_seeds(1000)
