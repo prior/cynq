@@ -174,6 +174,9 @@ class BaseStore(object):
         return self._list
     list_ = property(_get_list)
 
+    def __len__(self):
+        return len(self.list_)
+
     def _get_hash(self):
         if self._hash is None:
             self._sanity_check_list()
