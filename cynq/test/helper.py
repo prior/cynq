@@ -1,9 +1,9 @@
-import unittest2
+import unittest
 from copy import deepcopy
 import logger; logger.setup()
 #from pprint import pprint
 
-class TestCase(unittest2.TestCase):
+class TestCase(unittest.TestCase):
     def assert_equal_dlists(self, attrs, dlist1, dlist2, remove_attrs=None):
         dlist1 = self._scope_attrs_in_list(deepcopy(dlist1), attrs)
         dlist2 = self._scope_attrs_in_list(deepcopy(dlist2), attrs)

@@ -14,9 +14,9 @@ class FacetStore(BaseStore):
     def _pre_cynq(self): return self.proxy_store._pre_cynq()
     def _post_cynq(self): return self.proxy_store._post_cynq()
 
-    def _createable(self): return self.proxy_store._createable()
-    def _updateable(self): return self.proxy_store._updateable()
-    def _deleteable(self): return self.proxy_store._deleteable()
+    def _createable(self, arm): return self.proxy_store._createable(arm)
+    def _updateable(self, arm): return self.proxy_store._updateable(arm)
+    def _deleteable(self, arm): return self.proxy_store._deleteable(arm)
 
     def __init__(self, proxy_store):
         super(FacetStore, self).__init__()

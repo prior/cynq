@@ -23,16 +23,16 @@ class BaseStore(object):
     def _pre_cynq(self): return True
     def _post_cynq(self): return True
 
-    def _createable(self): return True
-    def _updateable(self): return True
-    def _deleteable(self): return True
+    def _createable(self, arm): return True
+    def _updateable(self, arm): return True
+    def _deleteable(self, arm): return True
 
 
     # public methods
     def bulk_create(self, tuples):
         if not tuples: return
         start_time = sanetime()
-        if not self._createable(): return # avoid error reporting since this is on purpose
+        if not self._createable(self.arm): return # avoid error reporting since this is on purpose
         try:
             for obj,dobj,keyless_trigger in self._bulk_create(tuples):
                 if obj: self._single_created(obj, dobj, keyless_trigger)
@@ -55,7 +55,7 @@ class BaseStore(object):
     def bulk_update(self, tuples):
         if not tuples: return
         start_time = sanetime()
-        if not self._updateable(): return  # avoid error reporting since this is on purpose
+        if not self._updateable(self.arm): return  # avoid error reporting since this is on purpose
         try:
             for success,obj,dchanges in self._bulk_update(tuples):
                 if success: self._single_updated(obj, dchanges)
@@ -77,7 +77,7 @@ class BaseStore(object):
     def bulk_delete(self, objs):
         if not objs: return
         start_time = sanetime()
-        if not self._deleteable(): return # avoid error reporting since this is on purpose
+        if not self._deleteable(self.arm): return # avoid error reporting since this is on purpose
         try:
             for success,obj in self._bulk_delete(objs):
                 if success: self._single_deleted(obj)
