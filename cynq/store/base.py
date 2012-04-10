@@ -47,7 +47,7 @@ class BaseStore(object):
             obj = self._single_create(dobj)
             self._single_created(obj, dobj, keyless_trigger)
         except NotImplementedError:
-            raise Error("You need to implement either the _single_create or the _bulk_create")
+            raise Error("You need to implement either the _single_create or the _bulk_create [%s: %s: %s]" % (self.__class__.__name__, self.spec.name, self.type_))
         except StandardError as err:
             self._single_create_fail(dobj, keyless_trigger, err)
 
