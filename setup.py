@@ -1,15 +1,21 @@
-from distutils.core import setup
+#!/usr/bin/env python
+from setuptools import setup, find_packages
 
-VERSION='2.3.10'
+VERSION = '2.3.11'
+
 setup(
     name='cynq',
     version=VERSION,
+    author='prior',
+    author_email='mprior@hubspot.com',
+    packages=find_packages(),
+    url='https://github.com/HubSpot/cynq',
+    download_url='https://github.com/HubSpot/cynq/tarball/v%s'%VERSION,
+    license='LICENSE.txt',
     description='A data synchronizer',
-    author='Michael Prior',
-    author_email='prior@cracklabs.com',
-    url='https://github.com/prior/cynq',
-    download_url='https://github.com/prior/cynq/tarball/v%s'%VERSION,
-    packages=['cynq'],
-    install_requires=[ 'nose==1.1.2' ]
+    long_description=open('README.rst').read(),
+    install_requires=[
+        'sanetime>=4,<5',
+    ],
 )
 

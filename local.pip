@@ -1,0 +1,5 @@
+-e .
+
+nose>=1,<2
+rudolf
+bpython
