@@ -1,6 +1,8 @@
 cynq
 ====
 
+UPDATE: kicked back to prior/cynq -- cleaning up HubSpot/*
+
 cynq is a core framework to aide in syncing of remote data stores.
 
 You are able to sync 1 or many remote sources of data with a local source.  
